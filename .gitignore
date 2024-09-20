@@ -1,0 +1,25 @@
+# Environment
+.env/
+
+# Build targets
+bin/
+out/
+
+# Temporary object files
+*.o
+*.a
+
+# Go mod dependencies
+vendor/
+
+# Go cache
+go/
+.gopath/
+
+# IDE specific files
+.idea/
+.vscode/
+
+# Misc
+*.log
+.DS_Store

@@ -1,0 +1,14 @@
+# There should be one config per bot in bots/ with the name config.<botname>.toml
+
+[log]
+# valid levels are "debug", "info", "warn", "error"
+level = "info"
+# valid formats are "text" and "json"
+format = "text"
+# whether to add the log source to the log message
+add_source = true
+
+[bot]
+# add guild ids the commands should sync to, leave empty to sync globally
+dev_guilds = []
+token = "token"

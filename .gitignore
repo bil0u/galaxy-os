@@ -1,5 +1,7 @@
 # Configuration files
-*.sample.toml
+.env
+config*.toml
+!config.sample.toml
 
 # Build targets
 bin/

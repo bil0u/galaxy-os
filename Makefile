@@ -7,24 +7,23 @@ endif
 bot ?= none
 target = ./bots/${bot}
 
-ASDF_GOLANG_MOD_VERSION_ENABLED = true
-
 # =======
 # HELPERS
 # =======
 
 .PHONY: help confirm no-dirty
 
+## help: print this help message
+help:
+	@echo 'Usage:'
+	@sed -n 's/^##//p' ${MAKEFILE_LIST} | column -t -s ':' |  sed -e 's/^/ /'
+	
 confirm:
 	@echo -n "Are you sure? [y/N] " && read ans && [ $${ans:-N} = y ]
 
 no-dirty:
 	@test -z "$(shell git status --porcelain)"
 
-## help: print this help message
-help:
-	@echo 'Usage:'
-	@sed -n 's/^##//p' ${MAKEFILE_LIST} | column -t -s ':' |  sed -e 's/^/ /'
 
 # ===============
 # QUALITY CONTROL
@@ -88,7 +87,6 @@ run/hue: run
 ## run/kevin: run the Kevin bot
 run/kevin: bot = kevin
 run/kevin: run
-
 
 # ==========
 # PRODUCTION

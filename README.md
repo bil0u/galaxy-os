@@ -14,8 +14,8 @@ This document will guide you through the structure and architecture of the proje
 
 ```
 
-foundation/
-bots/
+core/ # Contains all shared modules
+bots/ # Specific configs for each bots
     hue/
     kevin/
 

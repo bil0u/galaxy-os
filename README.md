@@ -13,10 +13,6 @@ This document will guide you through the structure and architecture of the proje
 ## Project structure
 
 ```
-
-core/ # Contains all shared modules
-bots/ # Specific configs for each bots
-    hue/
-    kevin/
-
+cmd/ # Contains the main package and a specific configuration for each bot
+sdk/ # Contains all shared modules
 ```

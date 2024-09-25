@@ -5,7 +5,10 @@ ifneq (,$(wildcard ./.env))
 endif
 
 bot ?= none
-target = ./bots/${bot}
+source = cmd/main.go
+target = /tmp/bin/${bot}
+buildArgs = -ldflags "-X 'main.botName=${bot}'"
+runArgs = 
 
 # =======
 # HELPERS
@@ -66,11 +69,11 @@ push: confirm audit no-dirty
 	git push
 
 build: tidy
-	go build -o=/tmp/bin/${bot} ${target}
+	go build ${buildArgs} -o=${target} ${source}
 #   -> Include additional build steps, like TypeScript, SCSS or Tailwind compilation here...
 
 run: build
-	/tmp/bin/${bot}
+	${target} ${runArgs}
 
 ## build/hue: build the Hue bot
 build/hue: bot = hue
@@ -94,9 +97,11 @@ run/kevin: run
 
 .PHONY: deploy deploy/hue deploy/kevin
 
+deploy: target = /tmp/bin/linux_amd64/${bot}
+deploy: buildArgs = -ldflags "-X 'main.botName=${bot}' -s"
 deploy: confirm audit no-dirty
-	GOOS=linux GOARCH=amd64 go build -ldflags='-s' -o=/tmp/bin/linux_amd64/${bot} ${target}
-	upx -5 /tmp/bin/linux_amd64/${bot}
+	GOOS=linux GOARCH=amd64 go build ${buildArgs} -o=${target} ${source}
+	upx -5 ${target}
 	# Include additional deployment steps here...
 
 ## deploy/hue: deploy the Hue bot to production

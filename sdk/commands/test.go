@@ -7,11 +7,11 @@ import (
 
 var Test = discord.SlashCommandCreate{
 	Name:        "test",
-	Description: "test command",
+	Description: "Commande de test",
 	Options: []discord.ApplicationCommandOption{
 		discord.ApplicationCommandOptionString{
-			Name:         "choice",
-			Description:  "some autocomplete choice",
+			Name:         "option",
+			Description:  "Selectionne un nombre",
 			Required:     true,
 			Autocomplete: true,
 		},

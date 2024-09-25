@@ -1,4 +1,4 @@
-package bots
+package main
 
 import (
 	"context"
@@ -10,23 +10,50 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/bil0u/galaxy-os/cmd/bots"
 	"github.com/bil0u/galaxy-os/sdk"
 	"github.com/bil0u/galaxy-os/sdk/handlers"
 	"github.com/disgoorg/disgo/bot"
-	"github.com/disgoorg/disgo/discord"
 	"github.com/disgoorg/disgo/handler"
 )
 
-type routerInitializer func(*sdk.Bot, *handler.Mux) []discord.ApplicationCommandCreate
+var (
+	botName = "unknown"
+	version = "dev"
+	commit  = "unknown"
+)
 
-func Run(botName string, version string, commit string, initRouter routerInitializer) {
+// Storing flags in a struct
+type flags struct {
+	syncCommands bool
+	configPath   string
+}
+
+func main() {
+
+	var routerInit sdk.RouterInitializer
+
+	// Checking if the provided bot name is valid
+	switch botName {
+	case "hue":
+		routerInit = bots.HueRouter
+	case "kevin":
+		routerInit = bots.KevinRouter
+	default:
+		slog.Error("Unknown bot", slog.String("bot", botName))
+		os.Exit(-1)
+	}
+
+	slog.Info(fmt.Sprintf("Starting bot '%s'", botName), slog.String("version", version), slog.String("commit", commit))
+
 	// Parse flags
-	shouldSyncCommands := flag.Bool("sync-commands", false, "Whether to sync commands to discord")
-	configPath := flag.String("config", fmt.Sprintf("config.%s.toml", botName), "path to config")
+	var f flags
+	flag.BoolVar(&f.syncCommands, "sync-commands", false, "Whether to sync commands to discord")
+	flag.StringVar(&f.configPath, "config", fmt.Sprintf("config.%s.toml", botName), "path to config")
 	flag.Parse()
 
 	// Load config file
-	cfg, err := sdk.LoadConfig(*configPath)
+	cfg, err := sdk.LoadConfig(f.configPath)
 	if err != nil {
 		slog.Error("Failed to read config", slog.Any("err", err))
 		os.Exit(-1)
@@ -34,17 +61,12 @@ func Run(botName string, version string, commit string, initRouter routerInitial
 
 	// Setup logger
 	sdk.SetupLogger(cfg.Log)
-	slog.Info(fmt.Sprintf("Starting bot '%s'", botName), slog.String("version", version), slog.String("commit", commit))
-	slog.Info("Syncing commands", slog.Bool("sync", *shouldSyncCommands))
 
 	// Create bot
 	b := sdk.NewBot(*cfg, botName, version, commit)
 
-	// Setup handlers
+	// Setup handler
 	h := handler.New()
-
-	// Execute register handler and get available commands
-	availableCommands := initRouter(b, h)
 
 	// Setup bot
 	if err = b.SetupBot(h, bot.NewListenerFunc(b.OnReady), handlers.MessageHandler(b)); err != nil {
@@ -59,10 +81,13 @@ func Run(botName string, version string, commit string, initRouter routerInitial
 		b.Client.Close(ctx)
 	}()
 
+	// Execute register handler and get available commands
+	availableCommands := routerInit(b, h)
+
 	// Sync commands if needed
-	if *shouldSyncCommands {
+	if f.syncCommands {
 		slog.Info("Syncing commands", slog.Any("guild_ids", cfg.Bot.DevGuilds))
-		if err = handler.SyncCommands(b.Client, availableCommands, cfg.Bot.DevGuilds); err != nil {
+		if err := handler.SyncCommands(b.Client, availableCommands, cfg.Bot.DevGuilds); err != nil {
 			slog.Error("Failed to sync commands", slog.Any("err", err))
 		}
 	}
@@ -81,4 +106,5 @@ func Run(botName string, version string, commit string, initRouter routerInitial
 	signal.Notify(s, syscall.SIGINT, syscall.SIGTERM)
 	<-s
 	slog.Info("Shutting down bot...")
+
 }

@@ -8,7 +8,7 @@ bot ?= none
 source = cmd/main.go
 target = /tmp/bin/${bot}
 buildArgs = -ldflags "-X 'main.botName=${bot}'"
-runArgs = 
+runArgs = --sync-commands
 
 # =======
 # HELPERS

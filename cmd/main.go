@@ -1,20 +1,15 @@
 package main
 
 import (
-	"context"
 	"flag"
 	"fmt"
 	"log/slog"
 	"os"
-	"os/signal"
-	"syscall"
-	"time"
 
 	"github.com/bil0u/galaxy-os/cmd/bots"
 	"github.com/bil0u/galaxy-os/sdk"
-	"github.com/bil0u/galaxy-os/sdk/handlers"
 	"github.com/disgoorg/disgo/bot"
-	"github.com/disgoorg/disgo/handler"
+	"github.com/disgoorg/disgo/discord"
 )
 
 var (
@@ -30,21 +25,6 @@ type flags struct {
 }
 
 func main() {
-
-	var routerInit sdk.RouterInitializer
-
-	// Checking if the provided bot name is valid
-	switch botName {
-	case "hue":
-		routerInit = bots.HueRouter
-	case "kevin":
-		routerInit = bots.KevinRouter
-	default:
-		slog.Error("Unknown bot", slog.String("bot", botName))
-		os.Exit(-1)
-	}
-
-	slog.Info(fmt.Sprintf("Starting bot '%s'", botName), slog.String("version", version), slog.String("commit", commit))
 
 	// Parse flags
 	var f flags
@@ -64,47 +44,30 @@ func main() {
 
 	// Create bot
 	b := sdk.NewBot(*cfg, botName, version, commit)
+	var (
+		botCommands  []discord.ApplicationCommandCreate
+		botListeners []bot.EventListener
+	)
 
-	// Setup handler
-	h := handler.New()
-
-	// Setup bot
-	if err = b.SetupBot(h, bot.NewListenerFunc(b.OnReady), handlers.MessageHandler(b)); err != nil {
-		slog.Error("Failed to setup bot", slog.Any("err", err))
+	// Checking if the provided bot name is valid
+	switch botName {
+	case "hue":
+		botCommands = bots.HueCommands
+		botListeners = bots.HueEventListeners(b)
+	case "kevin":
+		botCommands = bots.KevinCommands
+		botListeners = bots.KevinEventListeners(b)
+	default:
+		slog.Error("Unknown bot", slog.String("bot", botName))
 		os.Exit(-1)
 	}
 
-	// Defer close
-	defer func() {
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
-		b.Client.Close(ctx)
-	}()
-
-	// Execute register handler and get available commands
-	availableCommands := routerInit(b, h)
-
-	// Sync commands if needed
-	if f.syncCommands {
-		slog.Info("Syncing commands", slog.Any("guild_ids", cfg.Bot.DevGuilds))
-		if err := handler.SyncCommands(b.Client, availableCommands, cfg.Bot.DevGuilds); err != nil {
-			slog.Error("Failed to sync commands", slog.Any("err", err))
-		}
+	// Make sure we don't sync commands if we don't want to
+	if !f.syncCommands {
+		botCommands = nil
 	}
 
-	// Open gateway
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-	if err = b.Client.OpenGateway(ctx); err != nil {
-		slog.Error("Failed to open gateway", slog.Any("err", err))
-		os.Exit(-1)
-	}
-
-	// Wait for signal to shutdown
-	slog.Info("Bot is running. Press CTRL-C to exit.")
-	s := make(chan os.Signal, 1)
-	signal.Notify(s, syscall.SIGINT, syscall.SIGTERM)
-	<-s
-	slog.Info("Shutting down bot...")
+	b.SetupBot(botListeners)
+	b.Start(botCommands)
 
 }

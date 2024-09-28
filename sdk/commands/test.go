@@ -10,7 +10,7 @@ var Test = discord.SlashCommandCreate{
 	Description: "Commande de test",
 	Options: []discord.ApplicationCommandOption{
 		discord.ApplicationCommandOptionString{
-			Name:         "option",
+			Name:         "choice",
 			Description:  "Selectionne un nombre",
 			Required:     true,
 			Autocomplete: true,
@@ -20,7 +20,7 @@ var Test = discord.SlashCommandCreate{
 
 func TestHandler(e *handler.CommandEvent) error {
 	return e.CreateMessage(discord.NewMessageCreateBuilder().
-		SetContentf("test command. Choice: %s", e.SlashCommandInteractionData().String("choice")).
+		SetContentf("Commande de test. Choix: %s", e.SlashCommandInteractionData().String("choice")).
 		AddActionRow(discord.NewPrimaryButton("test", "/test-button")).
 		Build(),
 	)

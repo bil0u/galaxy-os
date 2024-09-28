@@ -10,9 +10,11 @@ import (
 	"github.com/disgoorg/disgo/handler"
 )
 
-var HueCommands = []discord.ApplicationCommandCreate{
-	commands.Test,
-	commands.Version,
+func HueCommands(b *sdk.Bot) []discord.ApplicationCommandCreate {
+	return []discord.ApplicationCommandCreate{
+		commands.Test,
+		commands.Version,
+	}
 }
 
 func HueEventListeners(b *sdk.Bot) []bot.EventListener {

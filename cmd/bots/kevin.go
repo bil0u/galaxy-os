@@ -10,9 +10,11 @@ import (
 	"github.com/disgoorg/disgo/handler"
 )
 
-var KevinCommands = []discord.ApplicationCommandCreate{
-	commands.Test,
-	commands.Version,
+func KevinCommands(b *sdk.Bot) []discord.ApplicationCommandCreate {
+	return []discord.ApplicationCommandCreate{
+		commands.Test,
+		commands.Version,
+	}
 }
 
 func KevinEventListeners(b *sdk.Bot) []bot.EventListener {

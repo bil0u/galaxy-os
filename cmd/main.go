@@ -8,7 +8,6 @@ import (
 
 	"github.com/bil0u/galaxy-os/cmd/bots"
 	"github.com/bil0u/galaxy-os/sdk"
-	"github.com/disgoorg/disgo/bot"
 	"github.com/disgoorg/disgo/discord"
 )
 
@@ -24,8 +23,19 @@ type flags struct {
 	configPath   string
 }
 
-func main() {
+func init() {
+	sdk.RegisterBotParts("hue", sdk.BotParts{
+		Commands:  bots.HueCommands,
+		Listeners: bots.HueEventListeners,
+	})
 
+	sdk.RegisterBotParts("kevin", sdk.BotParts{
+		Commands:  bots.KevinCommands,
+		Listeners: bots.KevinEventListeners,
+	})
+}
+
+func main() {
 	// Parse flags
 	var f flags
 	flag.BoolVar(&f.syncCommands, "sync-commands", false, "Whether to sync commands to discord")
@@ -42,32 +52,35 @@ func main() {
 	// Setup logger
 	sdk.SetupLogger(cfg.Log)
 
-	// Create bot
-	b := sdk.NewBot(*cfg, botName, version, commit)
-	var (
-		botCommands  []discord.ApplicationCommandCreate
-		botListeners []bot.EventListener
-	)
-
-	// Checking if the provided bot name is valid
-	switch botName {
-	case "hue":
-		botCommands = bots.HueCommands
-		botListeners = bots.HueEventListeners(b)
-	case "kevin":
-		botCommands = bots.KevinCommands
-		botListeners = bots.KevinEventListeners(b)
-	default:
-		slog.Error("Unknown bot", slog.String("bot", botName))
+	// Create and start bot
+	if err := startBot(cfg, botName, version, commit, f.syncCommands); err != nil {
+		slog.Error("Failed to start bot", slog.Any("err", err))
 		os.Exit(-1)
+	}
+}
+
+func startBot(cfg *sdk.Config, botName, version, commit string, syncCommands bool) error {
+	b := sdk.NewBot(*cfg, botName, version, commit)
+
+	// Get bot components
+	components, err := sdk.GetBotParts(botName)
+	if err != nil {
+		return err
+	}
+
+	// Setup bot listeners
+	botListeners := components.Listeners(b)
+	if err := b.SetupBot(botListeners); err != nil {
+		return err
 	}
 
 	// Make sure we don't sync commands if we don't want to
-	if !f.syncCommands {
-		botCommands = nil
+	var botCommands []discord.ApplicationCommandCreate
+	if syncCommands {
+		botCommands = components.Commands(b)
 	}
 
-	b.SetupBot(botListeners)
+	// Start bot
 	b.Start(botCommands)
-
+	return nil
 }

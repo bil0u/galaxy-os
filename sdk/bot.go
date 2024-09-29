@@ -9,9 +9,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/disgoorg/disgo"
 	"github.com/disgoorg/disgo/bot"
-	"github.com/disgoorg/disgo/cache"
 	"github.com/disgoorg/disgo/discord"
 	"github.com/disgoorg/disgo/events"
 	"github.com/disgoorg/disgo/gateway"
@@ -31,34 +29,33 @@ func NewBot(cfg Config, name string, version string, commit string) *Bot {
 }
 
 type Bot struct {
-	Cfg       Config
 	Name      string
 	Version   string
 	Commit    string
+	Cfg       Config
 	Client    bot.Client
 	Paginator *paginator.Manager
 }
 
-func (b *Bot) SetupBot(listeners []bot.EventListener) error {
-	if (listeners == nil) || (len(listeners) == 0) {
-		return fmt.Errorf("no command listener provided")
-	}
-	slog.Info(fmt.Sprintf("Setting up bot '%s' ...", b.Name))
-	client, err := disgo.New(b.Cfg.Bot.Token,
-		bot.WithGatewayConfigOpts(gateway.WithIntents(gateway.IntentGuilds, gateway.IntentGuildMessages, gateway.IntentMessageContent)),
-		bot.WithCacheConfigOpts(cache.WithCaches(cache.FlagGuilds)),
-		bot.WithEventListeners(b.Paginator),
-		bot.WithEventListeners(bot.NewListenerFunc(b.onReady)),
-		bot.WithEventListeners(listeners...),
-	)
-	if err != nil {
-		return err
-	}
-	b.Client = client
+// SetupBot sets up the bot with the provided parts
+func (b *Bot) SetupBot(parts BotParts) error {
+
+	// Add default listeners
+	b.Client.AddEventListeners(b.Paginator)
+	b.Client.AddEventListeners(bot.NewListenerFunc(b.OnReady))
+
+	// Create router and register it as an event listener
+	router := parts.CreateRouter(b)
+	b.Client.AddEventListeners(router)
+
+	// Create bot listeners
+	listeners := parts.CreateListeners(b)
+	b.Client.AddEventListeners(listeners...)
+
 	return nil
 }
 
-func (b *Bot) Start(syncCommands []discord.ApplicationCommandCreate) {
+func (b *Bot) Start(syncCommands []discord.ApplicationCommandCreate, syncRoles bool) {
 
 	slog.Info(fmt.Sprintf("Starting bot '%s' ...", b.Name))
 
@@ -70,10 +67,23 @@ func (b *Bot) Start(syncCommands []discord.ApplicationCommandCreate) {
 		b.Client.Close(ctx)
 	}()
 
+	// Sync roles if needed
+	if syncRoles {
+		for _, guildID := range b.Cfg.Bot.GetGuildsToSync() {
+			guildRoles := b.Cfg.Bot.GetGuildRoles(guildID)
+			err := AssignRolesToBot(b.Client, guildID, guildRoles)
+			slog.Info(fmt.Sprintf("Syncing roles for guild '%s'", guildID), slog.Any("roles", guildRoles))
+			if err != nil {
+				slog.Error("Error assigning role to bot: %v", slog.Any("err", err))
+			}
+		}
+	}
+
 	// Sync commands if needed
 	if syncCommands != nil {
-		slog.Info("Syncing commands", slog.Any("guild_ids", b.Cfg.Bot.DevGuilds))
-		if err := handler.SyncCommands(b.Client, syncCommands, b.Cfg.Bot.DevGuilds); err != nil {
+		guilds := b.Cfg.Bot.GetGuildsToSync()
+		slog.Info("Syncing commands", slog.Any("guilds", guilds))
+		if err := handler.SyncCommands(b.Client, syncCommands, guilds); err != nil {
 			slog.Error("Failed to sync commands", slog.Any("err", err))
 		}
 	}
@@ -95,7 +105,7 @@ func (b *Bot) Start(syncCommands []discord.ApplicationCommandCreate) {
 	slog.Info("Shutting down bot...")
 }
 
-func (b *Bot) onReady(_ *events.Ready) {
+func (b *Bot) OnReady(_ *events.Ready) {
 	slog.Info(fmt.Sprintf("Bot '%s' is ready", b.Name))
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()

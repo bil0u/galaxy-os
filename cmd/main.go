@@ -6,81 +6,164 @@ import (
 	"log/slog"
 	"os"
 
-	"github.com/bil0u/galaxy-os/cmd/bots"
 	"github.com/bil0u/galaxy-os/sdk"
+	"github.com/bil0u/galaxy-os/sdk/generators"
 	"github.com/disgoorg/disgo/discord"
 )
 
+const defaultConfig = "config.default.toml"
+
 var (
-	botName = "unknown"
-	version = "dev"
-	commit  = "unknown"
+	version string = "dev"
+	commit  string = "unknown"
 )
 
 // Storing flags in a struct
-type flags struct {
-	syncCommands bool
-	configPath   string
-}
-
-func init() {
-	sdk.RegisterBotParts("hue", sdk.BotParts{
-		Commands:  bots.HueCommands,
-		Listeners: bots.HueEventListeners,
-	})
-
-	sdk.RegisterBotParts("kevin", sdk.BotParts{
-		Commands:  bots.KevinCommands,
-		Listeners: bots.KevinEventListeners,
-	})
+type CliFlags struct {
+	configDirectory string
+	configFile      string
+	botName         string
+	runAsGenerator  bool
+	syncCommands    bool
+	syncRoles       bool
+	logPermissions  bool
 }
 
 func main() {
+
 	// Parse flags
-	var f flags
-	flag.BoolVar(&f.syncCommands, "sync-commands", false, "Whether to sync commands to discord")
-	flag.StringVar(&f.configPath, "config", fmt.Sprintf("config.%s.toml", botName), "path to config")
+	var flags CliFlags
+
+	flag.StringVar(&flags.botName, "bot", "default", "Name of the bot to run")
+	flag.StringVar(&flags.configFile, "use-config", "", "Path to toml configuration file")
+	flag.StringVar(&flags.configDirectory, "config-dir", ".", "Path to the directory in which to find the config file")
+	flag.BoolVar(&flags.runAsGenerator, "generator", false, "Whether to run the bot only in generate mode")
+	flag.BoolVar(&flags.syncCommands, "sync-commands", false, "Whether to sync commands to discord")
+	flag.BoolVar(&flags.syncRoles, "sync-roles", false, "Whether to sync bot roles to guilds")
+	flag.BoolVar(&flags.logPermissions, "log-permissions", false, "If true, log bot application permissions")
 	flag.Parse()
 
-	// Load config file
-	cfg, err := sdk.LoadConfig(f.configPath)
-	if err != nil {
-		slog.Error("Failed to read config", slog.Any("err", err))
-		os.Exit(-1)
+	// Run bot in generate mode if needed
+	if flags.runAsGenerator {
+		// Defaulting to hue config for generators
+		if err := startGenerator(flags); err != nil {
+			slog.Error("Failed to start bot in generate mode", slog.Any("err", err))
+			os.Exit(-1)
+		}
+		os.Exit(0)
 	}
 
-	// Setup logger
-	sdk.SetupLogger(cfg.Log)
-
-	// Create and start bot
-	if err := startBot(cfg, botName, version, commit, f.syncCommands); err != nil {
+	// Run bot in normal mode
+	if err := startBot(flags); err != nil {
 		slog.Error("Failed to start bot", slog.Any("err", err))
 		os.Exit(-1)
 	}
 }
 
-func startBot(cfg *sdk.Config, botName, version, commit string, syncCommands bool) error {
-	b := sdk.NewBot(*cfg, botName, version, commit)
+func getConfig(flags CliFlags) (*sdk.Config, error) {
+	config := new(sdk.Config)
+
+	// Load generic config file
+	defaultConfigPath := fmt.Sprintf("%s/%s", flags.configDirectory, defaultConfig)
+	config, err := sdk.LoadConfig(defaultConfigPath, config)
+	if err != nil {
+		return nil, fmt.Errorf("encountered error while loading default config '%s'", defaultConfig)
+	}
+
+	// Retrieve config file passed as argument, or default to bot specific config
+	botConfigFile := fmt.Sprintf("config.%s.toml", flags.botName)
+	if flags.configFile != "" {
+		botConfigFile = flags.configFile
+	}
+
+	// Load bot specific config using the same logic
+	botConfigPath := fmt.Sprintf("%s/%s", flags.configDirectory, botConfigFile)
+	if botConfigPath != defaultConfigPath {
+		config, err = sdk.LoadConfig(botConfigPath, config)
+		if err != nil {
+			return nil, fmt.Errorf("encountered error while loading bot config '%s'", botConfigFile)
+		}
+	}
+
+	// Validate config
+	if err := sdk.ValidateConfig(config); err != nil {
+		return nil, fmt.Errorf("invalid configuration: %v", err)
+	}
+
+	return config, nil
+}
+
+func startGenerator(flags CliFlags) error {
+
+	// Defaulting to hue config for generators
+	flags.configFile = "config.hue.toml"
+	config, err := getConfig(flags)
+	if err != nil {
+		return fmt.Errorf("failed to create config: %v", err)
+	}
 
 	// Get bot components
-	components, err := sdk.GetBotParts(botName)
+	botParts, _ := sdk.GetBotParts("generator")
+
+	// Creating client to interact with discord
+	client, _ := sdk.NewBotClient(config.Bot.Token, botParts)
+
+	// Iterating over all generators and running them
+	var errors []error
+	for _, generator := range generators.All {
+		if err := generator(*client, config.Bot); err != nil {
+			errors = append(errors, err)
+		}
+	}
+
+	// If we have errors, return them
+	if len(errors) > 0 {
+		return fmt.Errorf("failed to run generators: %v", errors)
+	}
+	return nil
+}
+
+func startBot(flags CliFlags) error {
+
+	config, err := getConfig(flags)
+	if err != nil {
+		return fmt.Errorf("failed to create config: %v", err)
+	}
+
+	// Setup logger
+	sdk.SetupLogger(config.Log)
+	// Create bot
+	b := sdk.NewBot(*config, flags.botName, version, commit)
+
+	// Get bot components
+	botParts, err := sdk.GetBotParts(flags.botName)
 	if err != nil {
 		return err
 	}
 
-	// Setup bot listeners
-	botListeners := components.Listeners(b)
-	if err := b.SetupBot(botListeners); err != nil {
+	// Creating client using token
+	botClient, err := sdk.NewBotClient(b.Cfg.Bot.Token, botParts)
+	if err != nil {
+		return err
+	}
+	b.Client = *botClient
+
+	// Setup bot
+	if err = b.SetupBot(botParts); err != nil {
 		return err
 	}
 
 	// Make sure we don't sync commands if we don't want to
 	var botCommands []discord.ApplicationCommandCreate
-	if syncCommands {
-		botCommands = components.Commands(b)
+	if flags.syncCommands {
+		botCommands = botParts.Commands
+	}
+	// Log permissions if needed
+	if flags.logPermissions {
+		sdk.LogPermissions(b.Client, b.Cfg.Bot)
 	}
 
 	// Start bot
-	b.Start(botCommands)
+	b.Start(botCommands, flags.syncRoles)
 	return nil
 }

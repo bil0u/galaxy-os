@@ -11,4 +11,6 @@ add_source = true
 [bot]
 # add guild ids the commands should sync to, leave empty to sync globally
 dev_guilds = []
-token = "token"
+# application_id and token are required
+application_id = 0
+token = ""

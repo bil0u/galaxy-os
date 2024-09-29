@@ -4,11 +4,14 @@ ifneq (,$(wildcard ./.env))
 	export
 endif
 
-bot ?= none
-source = cmd/main.go
+bot ?= default
+version = dev
+commit = $(shell git rev-parse --short HEAD)
+source = cmd/*.go
 target = /tmp/bin/${bot}
-buildArgs = -ldflags "-X 'main.botName=${bot}'"
-runArgs = --sync-commands
+genScript = cmd/main.go
+buildArgs = -ldflags "-X 'main.version=${version}' -X 'main.commit=${commit}'"
+runArgs = --bot=${bot} --sync-commands --sync-roles --log-permissions
 
 # =======
 # HELPERS
@@ -75,6 +78,10 @@ build: tidy
 run: build
 	${target} ${runArgs}
 
+## generate: generate go code
+generate:
+	WORKDIR=$(shell pwd) GENSCRIPT=${genScript} go generate ./...
+
 ## build/hue: build the Hue bot
 build/hue: bot = hue
 build/hue: build
@@ -98,7 +105,9 @@ run/kevin: run
 .PHONY: deploy deploy/hue deploy/kevin
 
 deploy: target = /tmp/bin/linux_amd64/${bot}
-deploy: buildArgs = -ldflags "-X 'main.botName=${bot}' -s"
+deploy: version = $(shell git describe --tags --always --dirty)
+deploy: buildArgs = -ldflags "-X 'main.commit=${commit}' -X 'main.version=${version}' -s"
+deploy: runArgs = --bot=${bot} --sync-commands --sync-roles
 deploy: confirm audit no-dirty
 	GOOS=linux GOARCH=amd64 go build ${buildArgs} -o=${target} ${source}
 	upx -5 ${target}

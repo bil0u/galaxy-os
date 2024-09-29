@@ -74,7 +74,7 @@ func (b *Bot) Start(syncCommands []discord.ApplicationCommandCreate, syncRoles b
 			err := AssignRolesToBot(b.Client, guildID, guildRoles)
 			slog.Info(fmt.Sprintf("Syncing roles for guild '%s'", guildID), slog.Any("roles", guildRoles))
 			if err != nil {
-				slog.Error("Error assigning role to bot: %v", slog.Any("err", err))
+				slog.Error("Error assigning role to bot:", slog.Any("err", err))
 			}
 		}
 	}

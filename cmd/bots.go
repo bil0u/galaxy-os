@@ -15,9 +15,13 @@ import (
 func init() {
 
 	// Generator bot
-	sdk.RegisterBotParts("generator", *sdk.NewBotParts().AddIntents(
-		gateway.IntentsPrivileged,
-	))
+	sdk.RegisterBotParts("generator",
+		*sdk.NewBotParts().AddIntents(
+			gateway.IntentsAll,
+		).AddCaches(
+			cache.FlagRoles,
+			cache.FlagChannels,
+		))
 
 	// Hue bot
 	sdk.RegisterBotParts("hue", sdk.BotParts{

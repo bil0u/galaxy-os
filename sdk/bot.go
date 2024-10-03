@@ -9,7 +9,9 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/disgoorg/disgo"
 	"github.com/disgoorg/disgo/bot"
+	"github.com/disgoorg/disgo/cache"
 	"github.com/disgoorg/disgo/discord"
 	"github.com/disgoorg/disgo/events"
 	"github.com/disgoorg/disgo/gateway"
@@ -26,6 +28,18 @@ func NewBot(cfg Config, name string, version string, commit string) *Bot {
 		Paginator: paginator.New(),
 		Client:    nil,
 	}
+}
+
+func NewBotClient(token string, parts BotParts) (*bot.Client, error) {
+	client, err := disgo.New(token,
+		bot.WithGatewayConfigOpts(gateway.WithIntents(parts.Intents...)),
+		bot.WithCacheConfigOpts(cache.WithCaches(parts.Caches...)),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return &client, nil
 }
 
 type Bot struct {

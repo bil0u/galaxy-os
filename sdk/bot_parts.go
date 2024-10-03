@@ -3,26 +3,12 @@ package sdk
 import (
 	"fmt"
 
-	"github.com/disgoorg/disgo"
 	"github.com/disgoorg/disgo/bot"
 	"github.com/disgoorg/disgo/cache"
 	"github.com/disgoorg/disgo/discord"
 	"github.com/disgoorg/disgo/gateway"
 	"github.com/disgoorg/disgo/handler"
 )
-
-// NewClient creates a new disgo client with the provided token and parts
-func NewBotClient(token string, parts BotParts) (*bot.Client, error) {
-	client, err := disgo.New(token,
-		bot.WithGatewayConfigOpts(gateway.WithIntents(parts.Intents...)),
-		bot.WithCacheConfigOpts(cache.WithCaches(parts.Caches...)),
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	return &client, nil
-}
 
 func NewBotParts() *BotParts {
 	return &BotParts{

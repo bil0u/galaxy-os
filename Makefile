@@ -9,7 +9,7 @@ version = dev
 commit = $(shell git rev-parse --short HEAD)
 source = cmd/*.go
 target = /tmp/bin/${bot}
-genScript = cmd/main.go
+# genScript = cmd/main.go cmd/bots.go
 buildArgs = -ldflags "-X 'main.version=${version}' -X 'main.commit=${commit}'"
 runArgs = --bot=${bot} --sync-commands --sync-roles --log-permissions
 
@@ -60,7 +60,7 @@ test/cover:
 # DEVELOPMENT
 # ===========
 
-.PHONY: tidy push build run build/hue build/kevin run/hue run/kevin
+.PHONY: tidy push build run generate run/generator build/hue build/kevin run/hue run/kevin
 
 ## tidy: tidy modfiles and format .go files
 tidy:
@@ -80,7 +80,11 @@ run: build
 
 ## generate: generate go code
 generate:
-	WORKDIR=$(shell pwd) GENSCRIPT=${genScript} go generate ./...
+	WORKDIR=$(shell pwd) go generate ./...
+
+## run/generator: run the Hue bot in generator mode
+run/generator: runArgs = --generator
+run/generator: run generate
 
 ## build/hue: build the Hue bot
 build/hue: bot = hue

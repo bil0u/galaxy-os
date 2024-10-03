@@ -7,7 +7,7 @@ import (
 	"os"
 
 	"github.com/bil0u/galaxy-os/sdk"
-	"github.com/bil0u/galaxy-os/sdk/generators"
+	"github.com/bil0u/galaxy-os/sdk/utils"
 	"github.com/disgoorg/disgo/discord"
 )
 
@@ -43,9 +43,13 @@ func main() {
 	flag.BoolVar(&flags.logPermissions, "log-permissions", false, "If true, log bot application permissions")
 	flag.Parse()
 
+	// Run bot in generator mode if bot name is "generator"
+	if flags.botName == "generator" {
+		flags.runAsGenerator = true
+	}
+
 	// Run bot in generate mode if needed
 	if flags.runAsGenerator {
-		// Defaulting to hue config for generators
 		if err := startGenerator(flags); err != nil {
 			slog.Error("Failed to start bot in generate mode", slog.Any("err", err))
 			os.Exit(-1)
@@ -93,36 +97,6 @@ func getConfig(flags CliFlags) (*sdk.Config, error) {
 	return config, nil
 }
 
-func startGenerator(flags CliFlags) error {
-
-	// Defaulting to hue config for generators
-	flags.configFile = "config.hue.toml"
-	config, err := getConfig(flags)
-	if err != nil {
-		return fmt.Errorf("failed to create config: %v", err)
-	}
-
-	// Get bot components
-	botParts, _ := sdk.GetBotParts("generator")
-
-	// Creating client to interact with discord
-	client, _ := sdk.NewBotClient(config.Bot.Token, botParts)
-
-	// Iterating over all generators and running them
-	var errors []error
-	for _, generator := range generators.All {
-		if err := generator(*client, config.Bot); err != nil {
-			errors = append(errors, err)
-		}
-	}
-
-	// If we have errors, return them
-	if len(errors) > 0 {
-		return fmt.Errorf("failed to run generators: %v", errors)
-	}
-	return nil
-}
-
 func startBot(flags CliFlags) error {
 
 	config, err := getConfig(flags)
@@ -160,10 +134,46 @@ func startBot(flags CliFlags) error {
 	}
 	// Log permissions if needed
 	if flags.logPermissions {
-		sdk.LogPermissions(b.Client, b.Cfg.Bot)
+		utils.LogPermissions(b.Client, b.Cfg.Bot.DevGuilds)
 	}
 
 	// Start bot
 	b.Start(botCommands, flags.syncRoles)
+	return nil
+}
+
+// Generator mode
+
+func startGenerator(flags CliFlags) error {
+
+	// Defaulting to hue config for generators
+	flags.configFile = "config.hue.toml"
+	config, err := getConfig(flags)
+	if err != nil {
+		return fmt.Errorf("failed to create config: %v", err)
+	}
+
+	config.Log.AddSource = true
+
+	// Setup logger
+	sdk.SetupLogger(config.Log)
+
+	slog.Info("Running bot in generator mode...")
+
+	// Get bot components
+	botParts, err := sdk.GetBotParts("generator")
+	if err != nil {
+		return err
+	}
+
+	// Creating client to interact with discord
+	client, err := sdk.NewBotClient(config.Bot.Token, botParts)
+	if err != nil {
+		return err
+	}
+
+	// Run generators
+	utils.RunAllGenerators(*client, config.Bot)
+	slog.Info("Complete!")
 	return nil
 }

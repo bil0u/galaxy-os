@@ -8,6 +8,7 @@ require (
 	github.com/disgoorg/paginator v0.0.0-20240725182907-1bdf780b5586
 	github.com/disgoorg/snowflake/v2 v2.0.3
 	github.com/pelletier/go-toml/v2 v2.2.3
+	golang.org/x/text v0.18.0
 )
 
 require (

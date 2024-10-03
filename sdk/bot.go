@@ -71,10 +71,17 @@ func (b *Bot) Start(syncCommands []discord.ApplicationCommandCreate, syncRoles b
 	if syncRoles {
 		for _, guildID := range b.Cfg.Bot.GetGuildsToSync() {
 			guildRoles := b.Cfg.Bot.GetGuildRoles(guildID)
-			err := AssignRolesToBot(b.Client, guildID, guildRoles)
 			slog.Info(fmt.Sprintf("Syncing roles for guild '%s'", guildID), slog.Any("roles", guildRoles))
-			if err != nil {
-				slog.Error("Error assigning role to bot:", slog.Any("err", err))
+			guild := b.Client.Rest()
+
+			for _, roleID := range guildRoles {
+				// Assign each role to the bot
+				err := guild.AddMemberRole(guildID, b.Client.ApplicationID(), roleID)
+				if err != nil {
+					slog.Error("Failed to assign role '%s' to bot:", roleID.String(), slog.Any("err", err))
+				} else {
+					slog.Info("Successfully assigned role '%s' to bot in guild '%s'", roleID.String(), guildID.String())
+				}
 			}
 		}
 	}

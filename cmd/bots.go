@@ -1,10 +1,12 @@
 package main
 
 import (
+	"github.com/bil0u/galaxy-os/cmd/generators"
 	"github.com/bil0u/galaxy-os/sdk"
 	"github.com/bil0u/galaxy-os/sdk/commands"
 	"github.com/bil0u/galaxy-os/sdk/components"
 	"github.com/bil0u/galaxy-os/sdk/handlers"
+	"github.com/bil0u/galaxy-os/sdk/utils"
 	"github.com/disgoorg/disgo/bot"
 	"github.com/disgoorg/disgo/cache"
 	"github.com/disgoorg/disgo/discord"
@@ -14,14 +16,22 @@ import (
 
 func init() {
 
-	// Generator bot
+	// DEVELOPMENT BOTS
+
+	// Generator
 	sdk.RegisterBotParts("generator",
 		*sdk.NewBotParts().AddIntents(
 			gateway.IntentsAll,
 		).AddCaches(
 			cache.FlagRoles,
 			cache.FlagChannels,
-		))
+		),
+	)
+
+	utils.RegisterGenerator(generators.RoleEnumGenerator)
+	utils.RegisterGenerator(generators.ChannelEnumGenerator)
+
+	// PRODUCTION BOTS
 
 	// Hue bot
 	sdk.RegisterBotParts("hue", sdk.BotParts{

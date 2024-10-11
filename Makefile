@@ -11,7 +11,7 @@ source = cmd/*.go
 target = /tmp/bin/${bot}
 # genScript = cmd/main.go cmd/bots.go
 buildArgs = -ldflags "-X 'main.version=${version}' -X 'main.commit=${commit}'"
-runArgs = --bot=${bot} --sync-commands --sync-roles --log-permissions
+runArgs = --bot=${bot} --sync-commands --sync-roles
 
 # =======
 # HELPERS

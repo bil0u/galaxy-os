@@ -9,8 +9,15 @@ format = "text"
 add_source = true
 
 [bot]
-# add guild ids the commands should sync to, leave empty to sync globally
-dev_guilds = []
-# application_id and token are required
+# ApplicationID and Token are required
 application_id = 0
 token = ""
+
+# At least one guild definition is required
+[guilds.guild_id]
+# Wether the guild is used for the bot development
+dev_guild = false
+# Guild timezone
+timezone = ""
+# List of role IDs that the bot should have as bot roles
+bot_roles = []

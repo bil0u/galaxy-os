@@ -51,3 +51,12 @@ func (e RoleEnum) IsValid() bool {
 	_, ok := RoleMap[e]
 	return ok
 }
+
+func GetRoleEnum(id snowflake.ID) RoleEnum {
+	for role, roleID := range RoleMap {
+		if roleID == id {
+			return role
+		}
+	}
+	return ""
+}

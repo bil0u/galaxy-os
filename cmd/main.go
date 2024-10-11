@@ -134,7 +134,7 @@ func startBot(flags CliFlags) error {
 	}
 	// Log permissions if needed
 	if flags.logPermissions {
-		utils.LogPermissions(b.Client, b.Cfg.Bot.DevGuilds)
+		utils.LogPermissions(b.Client, b.Cfg.GetDevGuildsIDs())
 	}
 
 	// Start bot
@@ -173,7 +173,7 @@ func startGenerator(flags CliFlags) error {
 	}
 
 	// Run generators
-	utils.RunAllGenerators(*client, config.Bot)
+	utils.RunAllGenerators(*client, *config)
 	slog.Info("Complete!")
 	return nil
 }

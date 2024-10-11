@@ -6,6 +6,7 @@ import (
 	"github.com/bil0u/galaxy-os/sdk/commands"
 	"github.com/bil0u/galaxy-os/sdk/components"
 	"github.com/bil0u/galaxy-os/sdk/handlers"
+	"github.com/bil0u/galaxy-os/sdk/jobs"
 	"github.com/bil0u/galaxy-os/sdk/utils"
 	"github.com/disgoorg/disgo/bot"
 	"github.com/disgoorg/disgo/cache"
@@ -51,6 +52,13 @@ func init() {
 			commands.Test,
 			commands.Version,
 		},
+		CronJobs: []sdk.CronJob{
+			{
+				Name:     "DailyMessage",
+				Schedule: "30 10 * * *",
+				Creator:  jobs.DailyMessageJob,
+			},
+		},
 		CreateListeners: func(b *sdk.Bot) []bot.EventListener {
 			return []bot.EventListener{
 				handlers.MessageHandler(b),
@@ -74,6 +82,7 @@ func init() {
 		Commands: []discord.ApplicationCommandCreate{
 			commands.Version,
 		},
+		CronJobs: []sdk.CronJob{},
 		CreateListeners: func(b *sdk.Bot) []bot.EventListener {
 			return []bot.EventListener{
 				handlers.MessageHandler(b),

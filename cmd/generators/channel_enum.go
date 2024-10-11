@@ -64,7 +64,7 @@ func getParentChannel(channel discord.GuildChannel, candidates []discord.GuildCh
 
 func getDiscordChannels(g *utils.SourceFileGenerator) any {
 	// Fetch roles from Discord
-	channels, err := fetchGuildChannels(g.Client, g.Cfg.Guilds)
+	channels, err := fetchGuildChannels(g.Client, g.Cfg.GetGuildsIDs())
 	if err != nil {
 		log.Fatalf("Failed to fetch channels: %v", err)
 	}
@@ -214,4 +214,21 @@ func (e GuildChannelEnum) ParentID() snowflake.ID {
 	return GuildChannelCategoryMap[e]
 }
 
+func GetChannelEnum(channelID snowflake.ID) GuildChannelEnum {
+	for channel, id := range GuildChannelMap {
+		if id == channelID {
+			return channel
+		}
+	}
+	return ""
+}
+
+func GetChannelCategoryEnum(channelID snowflake.ID) GuildCategoryChannelEnum {
+	for channel, id := range GuildCategoryChannelMap {
+		if id == channelID {
+			return channel
+		}
+	}
+	return ""
+}
 `

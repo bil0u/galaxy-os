@@ -8,6 +8,8 @@ import (
 	"github.com/disgoorg/disgo/discord"
 	"github.com/disgoorg/disgo/gateway"
 	"github.com/disgoorg/disgo/handler"
+	"github.com/disgoorg/snowflake/v2"
+	"github.com/robfig/cron/v3"
 )
 
 func NewBotParts() *BotParts {
@@ -15,6 +17,7 @@ func NewBotParts() *BotParts {
 		Intents:         []gateway.Intents{},
 		Caches:          []cache.Flags{},
 		Commands:        []discord.ApplicationCommandCreate{},
+		CronJobs:        []CronJob{},
 		CreateListeners: func(b *Bot) []bot.EventListener { return nil },
 		CreateRouter:    func(b *Bot) *handler.Mux { return nil },
 	}
@@ -25,8 +28,15 @@ type BotParts struct {
 	Intents         []gateway.Intents
 	Caches          []cache.Flags
 	Commands        []discord.ApplicationCommandCreate
+	CronJobs        []CronJob
 	CreateListeners func(b *Bot) []bot.EventListener
 	CreateRouter    func(b *Bot) *handler.Mux
+}
+
+type CronJob struct {
+	Name     string
+	Schedule string
+	Creator  func(b *Bot, guildID snowflake.ID) cron.FuncJob
 }
 
 var partsRegistry = map[string]BotParts{}
@@ -64,12 +74,7 @@ func (p *BotParts) AddCommands(commands ...discord.ApplicationCommandCreate) *Bo
 	return p
 }
 
-func (p *BotParts) SetCreateListeners(createListeners func(b *Bot) []bot.EventListener) *BotParts {
-	p.CreateListeners = createListeners
-	return p
-}
-
-func (p *BotParts) SetCreateRouter(createRouter func(b *Bot) *handler.Mux) *BotParts {
-	p.CreateRouter = createRouter
+func (p *BotParts) AddCronJobs(jobs ...CronJob) *BotParts {
+	p.CronJobs = append(p.CronJobs, jobs...)
 	return p
 }

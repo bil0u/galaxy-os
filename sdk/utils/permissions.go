@@ -43,18 +43,18 @@ func GuildChannelFromAppCommandChannel(perm discord.ApplicationCommandPermission
 
 // CheckBotPermissions checks the bot's permissions in a specific guild
 func CheckBotPermissions(client bot.Client, guildID snowflake.ID) (discord.Permissions, discord.Permissions, map[snowflake.ID]discord.PermissionOverwrites, error) {
-	guilds := client.Rest()
+	restClient := client.Rest()
 
-	appId := client.ApplicationID()
+	appID := client.ApplicationID()
 
 	// Fetch the bot's information in the guild
-	guildCommandsPermissions, err := guilds.GetGuildCommandsPermissions(appId, guildID)
+	guildCommandsPermissions, err := restClient.GetGuildCommandsPermissions(appID, guildID)
 	if err != nil {
 		return 0, 0, nil, fmt.Errorf("failed to fetch bot info for guild %s: %v", guildID.String(), err)
 	}
 
 	// Fetch the guild roles
-	guildRoles, err := guilds.GetRoles(guildID)
+	guildRoles, err := restClient.GetRoles(guildID)
 	if err != nil {
 		return 0, 0, nil, fmt.Errorf("failed to fetch guildRoles for guild %s: %v", guildID.String(), err)
 	}
@@ -76,7 +76,7 @@ func CheckBotPermissions(client bot.Client, guildID snowflake.ID) (discord.Permi
 			case discord.ApplicationCommandPermissionTypeUser:
 				acpUser := perm.(discord.ApplicationCommandPermissionUser)
 				// Fetch the user permissions
-				guildMember, err := guilds.GetMember(guildID, acpUser.UserID)
+				guildMember, err := restClient.GetMember(guildID, acpUser.UserID)
 				if err != nil {
 					return 0, 0, nil, fmt.Errorf("failed to fetch guild member for guild %s: %v", guildID.String(), err)
 				}
@@ -89,7 +89,7 @@ func CheckBotPermissions(client bot.Client, guildID snowflake.ID) (discord.Permi
 				// Fetch the channel permissions
 				acpChannel := perm.(discord.ApplicationCommandPermissionChannel)
 
-				guildChannels, err := guilds.GetGuildChannels(guildID)
+				guildChannels, err := restClient.GetGuildChannels(guildID)
 				if err != nil {
 					return 0, 0, nil, fmt.Errorf("failed to fetch guild channels for guild %s: %v", guildID.String(), err)
 				}

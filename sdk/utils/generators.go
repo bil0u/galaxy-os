@@ -21,7 +21,7 @@ const GeneratedFileHeader = `
 
 type CodeGenerator interface {
 	Name() string
-	Setup(client bot.Client, cfg sdk.BotConfig)
+	Setup(client bot.Client, cfg sdk.Config)
 	Generate() error
 }
 
@@ -31,7 +31,7 @@ func RegisterGenerator(g CodeGenerator) {
 	allGenerators = append(allGenerators, g)
 }
 
-func RunAllGenerators(client bot.Client, cfg sdk.BotConfig) {
+func RunAllGenerators(client bot.Client, cfg sdk.Config) {
 	for _, g := range allGenerators {
 		slog.Info(fmt.Sprintf("Running generator '%s'", g.Name()))
 		g.Setup(client, cfg)
@@ -48,7 +48,7 @@ func RunAllGenerators(client bot.Client, cfg sdk.BotConfig) {
 
 type SourceFileGenerator struct {
 	Client        bot.Client
-	Cfg           sdk.BotConfig
+	Cfg           sdk.Config
 	OutputFile    string
 	Header        string
 	Template      string
@@ -61,7 +61,7 @@ func (g *SourceFileGenerator) Name() string {
 	return filenameParts[len(filenameParts)-1]
 }
 
-func (g *SourceFileGenerator) Setup(client bot.Client, cfg sdk.BotConfig) {
+func (g *SourceFileGenerator) Setup(client bot.Client, cfg sdk.Config) {
 	g.Client = client
 	g.Cfg = cfg
 }

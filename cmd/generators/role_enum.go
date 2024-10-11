@@ -54,7 +54,7 @@ func fetchRoles(client bot.Client, Guilds []snowflake.ID) ([]discord.Role, error
 
 func getDiscordRoles(g *utils.SourceFileGenerator) any {
 	// Fetch roles from Discord
-	roles, err := fetchRoles(g.Client, g.Cfg.Guilds)
+	roles, err := fetchRoles(g.Client, g.Cfg.GetGuildsIDs())
 	if err != nil {
 		log.Fatalf("Failed to fetch roles: %v", err)
 	}
@@ -104,5 +104,14 @@ func (e RoleEnum) ID() snowflake.ID {
 func (e RoleEnum) IsValid() bool {
 	_, ok := RoleMap[e]
 	return ok
+}
+
+func GetRoleEnum(id snowflake.ID) RoleEnum {
+	for role, roleID := range RoleMap {
+		if roleID == id {
+			return role
+		}
+	}
+	return ""
 }
 `

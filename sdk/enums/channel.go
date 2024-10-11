@@ -141,3 +141,21 @@ func (e GuildChannelEnum) IsValid() bool {
 func (e GuildChannelEnum) ParentID() snowflake.ID {
 	return GuildChannelCategoryMap[e]
 }
+
+func GetChannelEnum(channelID snowflake.ID) GuildChannelEnum {
+	for channel, id := range GuildChannelMap {
+		if id == channelID {
+			return channel
+		}
+	}
+	return ""
+}
+
+func GetChannelCategoryEnum(channelID snowflake.ID) GuildCategoryChannelEnum {
+	for channel, id := range GuildCategoryChannelMap {
+		if id == channelID {
+			return channel
+		}
+	}
+	return ""
+}

@@ -8,7 +8,7 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/bil0u/galaxy-os/sdk/utils"
+	"github.com/bil0u/galaxy-os/sdk"
 	"github.com/disgoorg/disgo/bot"
 	"github.com/disgoorg/disgo/discord"
 	"github.com/disgoorg/snowflake/v2"
@@ -17,9 +17,9 @@ import (
 	"golang.org/x/text/unicode/norm"
 )
 
-var ChannelEnumGenerator = &utils.SourceFileGenerator{
+var ChannelEnumGenerator = &sdk.SourceFileGenerator{
 	OutputFile: "sdk/enums/channel.go",
-	Header:     utils.GeneratedFileHeader,
+	Header:     sdk.GeneratedFileHeader,
 	TemplateFuncs: template.FuncMap{
 		"FormatChannelName": formatChannelName,
 	},
@@ -57,23 +57,23 @@ func getParentChannel(channel discord.GuildChannel, candidates []discord.GuildCh
 	if channel.ParentID() == nil {
 		return nil
 	}
-	return utils.Find(candidates, func(c discord.GuildChannel) bool {
+	return sdk.Find(candidates, func(c discord.GuildChannel) bool {
 		return c.ID().String() == channel.ParentID().String()
 	})
 }
 
-func getDiscordChannels(g *utils.SourceFileGenerator) any {
+func getDiscordChannels(g *sdk.SourceFileGenerator) any {
 	// Fetch roles from Discord
-	channels, err := fetchGuildChannels(g.Client, g.Cfg.GetGuildsIDs())
+	channels, err := fetchGuildChannels(g.Client, g.Config.GetGuildsIDs(false))
 	if err != nil {
 		log.Fatalf("Failed to fetch channels: %v", err)
 	}
 
-	categoryChannels := utils.Filter(channels, func(channel discord.GuildChannel) bool {
+	categoryChannels := sdk.Filter(channels, func(channel discord.GuildChannel) bool {
 		return channel.Type() == discord.ChannelTypeGuildCategory
 	})
 
-	channels = utils.Filter(channels, func(channel discord.GuildChannel) bool {
+	channels = sdk.Filter(channels, func(channel discord.GuildChannel) bool {
 		return channel.Type() == discord.ChannelTypeGuildText ||
 			channel.Type() == discord.ChannelTypeGuildVoice ||
 			channel.Type() == discord.ChannelTypeGuildNews ||
@@ -121,7 +121,7 @@ func getDiscordChannels(g *utils.SourceFileGenerator) any {
 			return c1.Position() - c2.Position()
 		}
 
-		return utils.IndexOf(typePriority, c1.Type()) - utils.IndexOf(typePriority, c2.Type())
+		return sdk.IndexOf(typePriority, c1.Type()) - sdk.IndexOf(typePriority, c2.Type())
 
 	})
 	return channelEnumGeneratorData{

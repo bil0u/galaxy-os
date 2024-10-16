@@ -1,4 +1,4 @@
-package utils
+package sdk
 
 func Filter[T any](ss []T, test func(T) bool) (ret []T) {
 	for _, s := range ss {
@@ -25,4 +25,8 @@ func IndexOf[T comparable](ss []T, s T) int {
 		}
 	}
 	return -1
+}
+
+func Contains[T comparable](ss []T, s T) bool {
+	return IndexOf(ss, s) > -1
 }

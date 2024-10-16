@@ -106,34 +106,3 @@ func CheckBotPermissions(client bot.Client, guildID snowflake.ID) (discord.Permi
 	}
 	return rolePermissions, userPermissions, channelPermissions, nil
 }
-
-func LogPermissions(client bot.Client, guildsID []snowflake.ID) {
-	// Checking permissions for each Guild
-	for _, guildID := range guildsID {
-		rolePerms, userPerms, channelOverwrites, err := CheckBotPermissions(client, guildID)
-		if err != nil {
-			slog.Error("Error checking bot permissions:", slog.Any("err", err))
-		}
-		slog.Info(fmt.Sprintf("[BOT PERMISSIONS - GUILD '%s']:", guildID.String()))
-		slog.Info(fmt.Sprintf("- Role permissions:\n%v", rolePerms.String()))
-		slog.Info(fmt.Sprintf("- User permissions:\n%v", userPerms.String()))
-		slog.Info("- Channel overwrites:")
-		for channelID, overwrites := range channelOverwrites {
-			slog.Info(fmt.Sprintf("  - <Channel '%s'>:", channelID.String()))
-			for _, overwrite := range overwrites {
-				switch overwrite.Type() {
-				case discord.PermissionOverwriteTypeRole:
-					roleOverwrite := overwrite.(discord.RolePermissionOverwrite)
-					slog.Info(fmt.Sprintf("    > Role '%s':", roleOverwrite.RoleID.String()))
-					slog.Info(fmt.Sprintf("      - Allow: %v", roleOverwrite.Allow.String()))
-					slog.Info(fmt.Sprintf("      - Deny: %v", roleOverwrite.Deny.String()))
-				case discord.PermissionOverwriteTypeMember:
-					memberOverwrite := overwrite.(discord.MemberPermissionOverwrite)
-					slog.Info(fmt.Sprintf("    > User '%s':", memberOverwrite.UserID.String()))
-					slog.Info(fmt.Sprintf("      - Allow: %v", memberOverwrite.Allow.String()))
-					slog.Info(fmt.Sprintf("      - Deny: %v", memberOverwrite.Deny.String()))
-				}
-			}
-		}
-	}
-}

@@ -12,12 +12,3 @@ add_source = true
 # ApplicationID and Token are required
 application_id = 0
 token = ""
-
-# At least one guild definition is required
-[guilds.guild_id]
-# Wether the guild is used for the bot development
-dev_guild = false
-# Guild timezone
-timezone = ""
-# List of role IDs that the bot should have as bot roles
-bot_roles = []

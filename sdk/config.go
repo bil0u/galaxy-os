@@ -5,99 +5,208 @@ import (
 	"log/slog"
 	"os"
 
-	"github.com/bil0u/galaxy-os/sdk/enums"
 	"github.com/disgoorg/snowflake/v2"
 	"github.com/pelletier/go-toml/v2"
 )
 
-func ValidateConfig(cfg *Config) error {
+// Bot configuration
 
-	if cfg.Bot.Token == "" {
-		return fmt.Errorf("token must be provided")
+// Guild configuration
+const botConfigFormat = "config.%s.toml"
+const guildConfigFormat = "guild.%s.toml"
+
+var defaultBotConfigFile = fmt.Sprintf(botConfigFormat, "default")
+
+// -- GENERIC FUNCTIONS --
+
+// loadFromFile loads a configuration file into a struct
+func loadFromFile[T any](path string, cfg *T) error {
+	file, err := os.Open(path)
+	if err != nil {
+		return fmt.Errorf("failed to open config: %w", err)
 	}
-	if cfg.Bot.ApplicationID == 0 {
-		return fmt.Errorf("ApplicationID must be provided")
-	}
-	if len(cfg.Guilds) == 0 {
-		return fmt.Errorf("at least one guild must be defined")
+	defer file.Close()
+	if err = toml.NewDecoder(file).Decode(cfg); err != nil {
+		return fmt.Errorf("failed to decode config: %w", err)
 	}
 	return nil
 }
 
-func LoadConfig(path string, cfg *Config) (*Config, error) {
-	file, err := os.Open(path)
+// TryLoadFromFile is a wrapper around loadFromFile that logs if the file was not loaded
+func tryLoadFromFile[T any](path string, cfg *T) {
+	slog.Info(fmt.Sprintf("Loading '%s'...", path))
+	err := loadFromFile(path, cfg)
 	if err != nil {
-		return cfg, fmt.Errorf("failed to open config: %w", err)
+		slog.Warn(fmt.Sprintf(" > Loaded with errors : %v", err))
+	} else {
+		slog.Info(" > Loaded without errors")
 	}
-	if err = toml.NewDecoder(file).Decode(&cfg); err != nil {
-		return cfg, err
-	}
-	return cfg, nil
 }
 
+// -- GLOBAL CONFIGURATION --
+
+// Top level configuration
 type Config struct {
-	Log    LogConfig                    `toml:"log"`
-	Bot    BotConfig                    `toml:"bot"`
-	Guilds map[snowflake.ID]GuildConfig `toml:"guilds"`
+	Development bool
+	Log         LogConfig     `toml:"log"`
+	Bot         BotConfig     `toml:"bot"`
+	Guilds      []GuildConfig `toml:"guilds"`
 }
 
+// ValidateConfig validates a Config object
+func (cfg Config) Validate() (errs []error) {
+
+	errs = append(errs, cfg.Log.Validate()...)
+	errs = append(errs, cfg.Bot.Validate()...)
+	for _, guildCfg := range cfg.Guilds {
+		errs = append(errs, guildCfg.Validate()...)
+	}
+
+	return
+}
+
+// NewConfig creates a new configuration object from a bot name and configuration file
+func NewConfig(botName, configFile, configDir string) (Config, error) {
+	config := Config{}
+
+	defaultConfigPath := fmt.Sprintf("%s/%s", configDir, defaultBotConfigFile)
+
+	// Load generic config file
+	err := loadFromFile(defaultConfigPath, &config)
+	if err != nil {
+		return config, fmt.Errorf("encountered error while loading default config '%s'", defaultBotConfigFile)
+	}
+
+	// If no config file is provided, use the default one that matches the bot name
+	if configFile == "" {
+		configFile = fmt.Sprintf(botConfigFormat, botName)
+	}
+
+	botConfigPath := fmt.Sprintf("%s/%s", configDir, configFile)
+
+	// Load bot specific config using the same logic
+	if botConfigPath != defaultConfigPath {
+		err = loadFromFile(botConfigPath, &config)
+		if err != nil {
+			return config, fmt.Errorf("encountered error while loading bot config '%s'", configFile)
+		}
+	}
+
+	return config, nil
+}
+
+// GetGuildsIDs returns a list of supported guild IDs, optionally filtering by dev guilds
+func (c Config) GetGuildsIDs(devOnly bool) []snowflake.ID {
+	var guilds []snowflake.ID
+	for _, guildCfg := range c.Guilds {
+		switch {
+		case devOnly && guildCfg.DevGuild:
+			guilds = append(guilds, guildCfg.ID)
+		case !devOnly:
+			guilds = append(guilds, guildCfg.ID)
+		}
+	}
+	return guilds
+}
+
+// GetGuildConfig returns the configuration for a specific guild, if it exists
+func (c Config) GetGuildConfig(guildID snowflake.ID) (GuildConfig, error) {
+	for i, guild := range c.Guilds {
+		if guild.ID == guildID {
+			return c.Guilds[i], nil
+		}
+	}
+	return GuildConfig{}, fmt.Errorf("guild '%s' not found", guildID)
+}
+
+// -- LOG CONFIGURATION --
+
+// LogConfig holds the configuration for the logger
 type LogConfig struct {
 	Level     slog.Level `toml:"level"`
 	Format    string     `toml:"format"`
 	AddSource bool       `toml:"add_source"`
 }
 
+// Validate validates a LogConfig object
+func (cfg LogConfig) Validate() (errs []error) {
+
+	if cfg.Format == "" {
+		errs = append(errs, fmt.Errorf("log.format must be provided"))
+	}
+
+	return
+}
+
+// -- BOT CONFIGURATION --
+
+// BotConfig holds the configuration for the bot
 type BotConfig struct {
 	Token         string       `toml:"token"`
 	ApplicationID snowflake.ID `toml:"application_id"`
 }
 
+func (cfg BotConfig) Validate() (errs []error) {
+
+	if cfg.Token == "" {
+		errs = append(errs, fmt.Errorf("bot.token must be provided"))
+	}
+
+	if cfg.ApplicationID == 0 {
+		errs = append(errs, fmt.Errorf("bot.application_id must be provided"))
+	}
+
+	return
+}
+
+// -- GUILD CONFIGURATION --
+
+// GuildConfig holds the configuration for a specific guild.
 type GuildConfig struct {
-	DevGuild bool           `toml:"dev_guild"`
-	Timezone string         `toml:"timezone"`
-	BotRoles []snowflake.ID `toml:"bot_roles"`
+	ID       snowflake.ID    `toml:"id"`
+	DevGuild bool            `toml:"dev_guild"`
+	Timezone string          `toml:"timezone"`
+	Features GuildFeatureSet `toml:"features"`
 }
 
-// GetGuildRoles returns the roles for a specific guild
-func (c Config) GetGuildRoles(guildID snowflake.ID) []enums.RoleEnum {
-	if guild, ok := c.Guilds[guildID]; ok {
-		var roles []enums.RoleEnum
-		for _, roleID := range guild.BotRoles {
-			// Getting role from RoleMap using roleID
-			if role := enums.GetRoleEnum(roleID); role.IsValid() {
-				roles = append(roles, role)
-			}
+func (cfg GuildConfig) Validate() (errs []error) {
 
-		}
-		return roles
+	if cfg.ID == 0 {
+		errs = append(errs, fmt.Errorf("guild.id must be provided"))
 	}
-	return nil
+
+	if cfg.Timezone == "" {
+		errs = append(errs, fmt.Errorf("guild.timezone must be provided"))
+	}
+
+	if cfg.Features == nil {
+		errs = append(errs, fmt.Errorf("guild.features must be defined"))
+	}
+
+	return
 }
 
-// GetGuilds returns the guilds that the bot is in
-func (c Config) GetGuildsIDs() []snowflake.ID {
-	var guilds []snowflake.ID
-	for guildID := range c.Guilds {
-		guilds = append(guilds, guildID)
+// NewGuildConfig creates a new guild configuration object
+// If a guild config directory exists, it will try to load the guild config from it
+func NewGuildConfig(guildID snowflake.ID, botName string, allowedFeatures BotFeatureSet) GuildConfig {
+	// Default guild config
+	guildCfg := GuildConfig{
+		ID:       guildID,
+		DevGuild: false,
+		Timezone: "",
+		Features: GuildFeatureSet{},
 	}
-	return guilds
-}
 
-// GetDevGuilds returns the dev guilds that the bot is in
-func (c Config) GetDevGuildsIDs() []snowflake.ID {
-	var devGuilds []snowflake.ID
-	for guildID, guild := range c.Guilds {
-		if guild.DevGuild {
-			devGuilds = append(devGuilds, guildID)
-		}
-	}
-	return devGuilds
-}
+	guildConfigFile := fmt.Sprintf(guildConfigFormat, guildID)
 
-// GetGuildTimezone returns the timezone for a specific guild
-func (c Config) GetGuildConfig(guildID snowflake.ID) *GuildConfig {
-	if guild, ok := c.Guilds[guildID]; ok {
-		return &guild
-	}
-	return nil
+	loadFromFile(guildConfigFile, &guildCfg)
+
+	// From the same file, load the features definition
+	featuresDefinition := TomlFeaturesDefinition{}
+	loadFromFile(guildConfigFile, &featuresDefinition)
+
+	// Convert the features definition to actual features, filtering by bot name and allowed features
+	guildCfg.Features = featuresDefinition.ToFeatures(botName, allowedFeatures)
+
+	return guildCfg
 }

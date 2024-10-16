@@ -1,31 +1,31 @@
-package commands
+package test_command
 
 import (
-	"github.com/bil0u/galaxy-os/sdk/utils"
+	"github.com/bil0u/galaxy-os/sdk"
 	"github.com/disgoorg/disgo/discord"
 	"github.com/disgoorg/disgo/handler"
 )
 
-var Test = discord.SlashCommandCreate{
+var testCommand = discord.SlashCommandCreate{
 	Name: "test",
-	NameLocalizations: utils.LocalizedString{
+	NameLocalizations: sdk.LocalizedString{
 		discord.LocaleEnglishUS: "test",
 		discord.LocaleFrench:    "test",
 	},
 	Description: "Test command",
-	DescriptionLocalizations: utils.LocalizedString{
+	DescriptionLocalizations: sdk.LocalizedString{
 		discord.LocaleEnglishUS: "Test command",
 		discord.LocaleFrench:    "Commande de test",
 	},
 	Options: []discord.ApplicationCommandOption{
 		discord.ApplicationCommandOptionString{
 			Name: "choice",
-			NameLocalizations: utils.LocalizedString{
+			NameLocalizations: sdk.LocalizedString{
 				discord.LocaleEnglishUS: "choice",
 				discord.LocaleFrench:    "choix",
 			},
 			Description: "Select a number",
-			DescriptionLocalizations: utils.LocalizedString{
+			DescriptionLocalizations: sdk.LocalizedString{
 				discord.LocaleEnglishUS: "Select a number",
 				discord.LocaleFrench:    "Selectionne un nombre",
 			},
@@ -38,7 +38,7 @@ var Test = discord.SlashCommandCreate{
 func TestHandler(e *handler.CommandEvent) error {
 	data := e.SlashCommandInteractionData()
 	return e.CreateMessage(discord.NewMessageCreateBuilder().
-		SetContentf(utils.LocalizedString{
+		SetContentf(sdk.LocalizedString{
 			discord.LocaleEnglishUS: "Test command. Choice: %s",
 			discord.LocaleFrench:    "Commande de test. Choix: %s",
 		}[e.Locale()], data.String("choice")).

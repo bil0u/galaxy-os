@@ -8,7 +8,7 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/bil0u/galaxy-os/sdk/utils"
+	"github.com/bil0u/galaxy-os/sdk"
 	"github.com/disgoorg/disgo/bot"
 	"github.com/disgoorg/disgo/discord"
 	"github.com/disgoorg/snowflake/v2"
@@ -17,9 +17,9 @@ import (
 	"golang.org/x/text/unicode/norm"
 )
 
-var RoleEnumGenerator = &utils.SourceFileGenerator{
+var RoleEnumGenerator = &sdk.SourceFileGenerator{
 	OutputFile: "sdk/enums/role.go",
-	Header:     utils.GeneratedFileHeader,
+	Header:     sdk.GeneratedFileHeader,
 	TemplateFuncs: template.FuncMap{
 		"FormatRoleName": formatRoleName,
 	},
@@ -52,15 +52,15 @@ func fetchRoles(client bot.Client, Guilds []snowflake.ID) ([]discord.Role, error
 	return roles, nil
 }
 
-func getDiscordRoles(g *utils.SourceFileGenerator) any {
+func getDiscordRoles(g *sdk.SourceFileGenerator) any {
 	// Fetch roles from Discord
-	roles, err := fetchRoles(g.Client, g.Cfg.GetGuildsIDs())
+	roles, err := fetchRoles(g.Client, g.Config.GetGuildsIDs(false))
 	if err != nil {
 		log.Fatalf("Failed to fetch roles: %v", err)
 	}
 
 	// Filtering roles to remove bot roles
-	roles = utils.Filter(roles, func(role discord.Role) bool {
+	roles = sdk.Filter(roles, func(role discord.Role) bool {
 		return role.Tags == nil || role.Tags.BotID == nil
 	})
 

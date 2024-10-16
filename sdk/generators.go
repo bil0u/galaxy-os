@@ -1,4 +1,4 @@
-package utils
+package sdk
 
 import (
 	"bytes"
@@ -9,7 +9,6 @@ import (
 	"os"
 	"strings"
 
-	"github.com/bil0u/galaxy-os/sdk"
 	"github.com/disgoorg/disgo/bot"
 )
 
@@ -19,19 +18,19 @@ const GeneratedFileHeader = `
 // Instead, run Makefile's "run/generator' or 'generate" targets to update this file.
 `
 
-type CodeGenerator interface {
+type Generator interface {
 	Name() string
-	Setup(client bot.Client, cfg sdk.Config)
+	Setup(client bot.Client, cfg Config)
 	Generate() error
 }
 
-var allGenerators = []CodeGenerator{}
+var allGenerators = []Generator{}
 
-func RegisterGenerator(g CodeGenerator) {
+func RegisterGenerator(g Generator) {
 	allGenerators = append(allGenerators, g)
 }
 
-func RunAllGenerators(client bot.Client, cfg sdk.Config) {
+func RunAllGenerators(client bot.Client, cfg Config) {
 	for _, g := range allGenerators {
 		slog.Info(fmt.Sprintf("Running generator '%s'", g.Name()))
 		g.Setup(client, cfg)
@@ -48,7 +47,7 @@ func RunAllGenerators(client bot.Client, cfg sdk.Config) {
 
 type SourceFileGenerator struct {
 	Client        bot.Client
-	Cfg           sdk.Config
+	Config        Config
 	OutputFile    string
 	Header        string
 	Template      string
@@ -61,9 +60,9 @@ func (g *SourceFileGenerator) Name() string {
 	return filenameParts[len(filenameParts)-1]
 }
 
-func (g *SourceFileGenerator) Setup(client bot.Client, cfg sdk.Config) {
+func (g *SourceFileGenerator) Setup(client bot.Client, cfg Config) {
 	g.Client = client
-	g.Cfg = cfg
+	g.Config = cfg
 }
 
 func (g *SourceFileGenerator) Generate() error {

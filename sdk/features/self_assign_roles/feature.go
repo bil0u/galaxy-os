@@ -37,7 +37,3 @@ func (f SelfAssignRolesFeature) IsEnabled() bool {
 func (f SelfAssignRolesFeature) Setup(bot *sdk.Bot) error {
 	return nil
 }
-
-func (f SelfAssignRolesFeature) CommandsCreate() []discord.ApplicationCommandCreate {
-	return nil
-}

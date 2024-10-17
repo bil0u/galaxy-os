@@ -13,15 +13,15 @@ type BotInfosFeature struct{}
 
 func (f BotInfosFeature) Name() sdk.LocalizedString {
 	return sdk.LocalizedString{
-		discord.LocaleEnglishUS: "Version",
-		discord.LocaleFrench:    "Version",
+		discord.LocaleEnglishUS: "Bot Infos",
+		discord.LocaleFrench:    "Bot Infos",
 	}
 }
 
 func (f BotInfosFeature) Description() sdk.LocalizedString {
 	return sdk.LocalizedString{
-		discord.LocaleEnglishUS: "Display the bot bot-infos",
-		discord.LocaleFrench:    "Affiche la bot-infos du bot",
+		discord.LocaleEnglishUS: "Display the bot informations",
+		discord.LocaleFrench:    "Affiche les informations du bot",
 	}
 }
 
@@ -30,11 +30,7 @@ func (f BotInfosFeature) IsEnabled() bool {
 }
 
 func (f BotInfosFeature) Setup(bot *sdk.Bot) error {
+	bot.Router.Command("/botinfos", CreateBotInfosHandler(bot))
+	bot.AddCommandsToSync(botInfosCommand)
 	return nil
-}
-
-func (f BotInfosFeature) CommandsCreate() []discord.ApplicationCommandCreate {
-	return []discord.ApplicationCommandCreate{
-		botInfosCommand,
-	}
 }

@@ -7,6 +7,9 @@ import (
 	"os"
 
 	"github.com/bil0u/galaxy-os/sdk"
+	"github.com/disgoorg/disgo/cache"
+	"github.com/disgoorg/disgo/gateway"
+	"github.com/disgoorg/snowflake/v2"
 )
 
 var (
@@ -35,8 +38,6 @@ func main() {
 	flag.BoolVar(&flags.syncCommands, "sync-commands", false, "Whether to sync commands with discord API")
 	flag.BoolVar(&flags.runAsGenerator, "generator", false, "Whether to run the bot in generator mode")
 	flag.Parse()
-
-	slog.Info("Starting bot", slog.Any("flags", flags))
 
 	// Get configuration from file
 	config, err := sdk.NewConfig(flags.botName, flags.configFile, flags.configDirectory)
@@ -71,8 +72,25 @@ func main() {
 
 func startBot(botName string, config sdk.Config, syncCommands bool) error {
 
+	dummyClient, err := sdk.NewBotClient(config.Bot.Token, nil, nil)
+	if err != nil {
+		return fmt.Errorf("error while building disgo dummy client: %w", err)
+	}
+
+	// Fetching each guild the bot is in
+	botGuilds, err := dummyClient.Rest().GetCurrentUserGuilds("", 0, 0, 0, true)
+	if err != nil {
+		return fmt.Errorf("failed to fetch bot guilds: %w", err)
+	}
+	guildIDs := make([]snowflake.ID, len(botGuilds))
+	for i, guild := range botGuilds {
+		guildIDs[i] = guild.ID
+	}
+
 	// Creating client using token
-	botClient, err := sdk.NewBotClient(config.Bot.Token, nil, nil)
+	botIntents := []gateway.Intents{gateway.IntentsAll}
+	botCaches := []cache.Flags{cache.FlagsAll}
+	botClient, err := sdk.NewBotShardedClient(len(guildIDs), config.Bot.Token, botIntents, botCaches)
 	if err != nil {
 		return err
 	}
@@ -87,7 +105,7 @@ func startBot(botName string, config sdk.Config, syncCommands bool) error {
 	}
 
 	// Setup bot
-	if err = bot.Setup(features); err != nil {
+	if err = bot.Setup(guildIDs, features); err != nil {
 		return err
 	}
 
@@ -98,8 +116,6 @@ func startBot(botName string, config sdk.Config, syncCommands bool) error {
 			return err
 		}
 	}
-
-	slog.Info("Bot configation: ", slog.Any("config", bot.Config))
 
 	// Start bot
 	return bot.Start()

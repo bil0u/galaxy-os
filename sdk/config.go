@@ -3,10 +3,8 @@ package sdk
 import (
 	"fmt"
 	"log/slog"
-	"os"
 
 	"github.com/disgoorg/snowflake/v2"
-	"github.com/pelletier/go-toml/v2"
 )
 
 // Bot configuration
@@ -16,32 +14,6 @@ const botConfigFormat = "config.%s.toml"
 const guildConfigFormat = "guild.%s.toml"
 
 var defaultBotConfigFile = fmt.Sprintf(botConfigFormat, "default")
-
-// -- GENERIC FUNCTIONS --
-
-// loadFromFile loads a configuration file into a struct
-func loadFromFile[T any](path string, cfg *T) error {
-	file, err := os.Open(path)
-	if err != nil {
-		return fmt.Errorf("failed to open config: %w", err)
-	}
-	defer file.Close()
-	if err = toml.NewDecoder(file).Decode(cfg); err != nil {
-		return fmt.Errorf("failed to decode config: %w", err)
-	}
-	return nil
-}
-
-// TryLoadFromFile is a wrapper around loadFromFile that logs if the file was not loaded
-func tryLoadFromFile[T any](path string, cfg *T) {
-	slog.Info(fmt.Sprintf("Loading '%s'...", path))
-	err := loadFromFile(path, cfg)
-	if err != nil {
-		slog.Warn(fmt.Sprintf(" > Loaded with errors : %v", err))
-	} else {
-		slog.Info(" > Loaded without errors")
-	}
-}
 
 // -- GLOBAL CONFIGURATION --
 
@@ -72,7 +44,7 @@ func NewConfig(botName, configFile, configDir string) (Config, error) {
 	defaultConfigPath := fmt.Sprintf("%s/%s", configDir, defaultBotConfigFile)
 
 	// Load generic config file
-	err := loadFromFile(defaultConfigPath, &config)
+	err := LoadFromFile(defaultConfigPath, &config)
 	if err != nil {
 		return config, fmt.Errorf("encountered error while loading default config '%s'", defaultBotConfigFile)
 	}
@@ -86,7 +58,7 @@ func NewConfig(botName, configFile, configDir string) (Config, error) {
 
 	// Load bot specific config using the same logic
 	if botConfigPath != defaultConfigPath {
-		err = loadFromFile(botConfigPath, &config)
+		err = LoadFromFile(botConfigPath, &config)
 		if err != nil {
 			return config, fmt.Errorf("encountered error while loading bot config '%s'", configFile)
 		}
@@ -199,11 +171,11 @@ func NewGuildConfig(guildID snowflake.ID, botName string, allowedFeatures BotFea
 
 	guildConfigFile := fmt.Sprintf(guildConfigFormat, guildID)
 
-	loadFromFile(guildConfigFile, &guildCfg)
+	LoadFromFile(guildConfigFile, &guildCfg)
 
 	// From the same file, load the features definition
 	featuresDefinition := TomlFeaturesDefinition{}
-	loadFromFile(guildConfigFile, &featuresDefinition)
+	LoadFromFile(guildConfigFile, &featuresDefinition)
 
 	// Convert the features definition to actual features, filtering by bot name and allowed features
 	guildCfg.Features = featuresDefinition.ToFeatures(botName, allowedFeatures)

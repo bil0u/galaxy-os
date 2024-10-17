@@ -13,15 +13,15 @@ type TestCommandFeature struct{}
 
 func (f TestCommandFeature) Name() sdk.LocalizedString {
 	return sdk.LocalizedString{
-		discord.LocaleEnglishUS: "Version",
-		discord.LocaleFrench:    "Version",
+		discord.LocaleEnglishUS: "Test",
+		discord.LocaleFrench:    "Test",
 	}
 }
 
 func (f TestCommandFeature) Description() sdk.LocalizedString {
 	return sdk.LocalizedString{
-		discord.LocaleEnglishUS: "Display the bot bot-infos",
-		discord.LocaleFrench:    "Affiche la bot-infos du bot",
+		discord.LocaleEnglishUS: "Testing feature, do not use",
+		discord.LocaleFrench:    "Test, ne pas utiliser",
 	}
 }
 
@@ -29,12 +29,7 @@ func (f TestCommandFeature) IsEnabled() bool {
 	return true
 }
 
-func (f TestCommandFeature) Setup(b *sdk.Bot) error {
+func (f TestCommandFeature) Setup(bot *sdk.Bot) error {
+	bot.AddCommandsToSync(testCommand)
 	return nil
-}
-
-func (f TestCommandFeature) CommandsCreate() []discord.ApplicationCommandCreate {
-	return []discord.ApplicationCommandCreate{
-		testCommand,
-	}
 }

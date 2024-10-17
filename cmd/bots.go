@@ -6,6 +6,7 @@ import (
 	"github.com/bil0u/galaxy-os/sdk/features/bot_infos"
 	"github.com/bil0u/galaxy-os/sdk/features/bot_presence"
 	"github.com/bil0u/galaxy-os/sdk/features/daily_message"
+	"github.com/bil0u/galaxy-os/sdk/features/log_permissions"
 	"github.com/bil0u/galaxy-os/sdk/features/self_assign_roles"
 	"github.com/bil0u/galaxy-os/sdk/features/suspicious_interview"
 	"github.com/bil0u/galaxy-os/sdk/features/test_command"
@@ -20,18 +21,24 @@ func init() {
 
 	// Hue Features
 	BotsFeatures["hue"] = sdk.BotFeatureSet{
-		bot_infos.BotInfosFeature{},
+		// Default Features
 		bot_presence.BotPresenceFeature{},
+		bot_infos.BotInfosFeature{},
+		log_permissions.LogPermissionsFeature{},
+		test_command.TestCommandFeature{},
 		self_assign_roles.SelfAssignRolesFeature{},
+		// Hue specific Features
 		daily_message.DailyMessageFeature{},
 		suspicious_interview.SuspiciousInterwiewFeature{},
-		test_command.TestCommandFeature{},
 	}
 
 	// Kevin Features
 	BotsFeatures["kevin"] = sdk.BotFeatureSet{
-		bot_infos.BotInfosFeature{},
+		// Default Features
 		bot_presence.BotPresenceFeature{},
+		bot_infos.BotInfosFeature{},
+		log_permissions.LogPermissionsFeature{},
+		test_command.TestCommandFeature{},
 		self_assign_roles.SelfAssignRolesFeature{},
 	}
 

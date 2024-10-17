@@ -39,7 +39,3 @@ func (f SuspiciousInterwiewFeature) IsEnabled() bool {
 func (f SuspiciousInterwiewFeature) Setup(bot *sdk.Bot) error {
 	return nil
 }
-
-func (f SuspiciousInterwiewFeature) CommandsCreate() []discord.ApplicationCommandCreate {
-	return nil
-}

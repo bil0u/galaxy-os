@@ -6,7 +6,6 @@ import (
 	"reflect"
 	"sync"
 
-	"github.com/disgoorg/disgo/discord"
 	"github.com/pelletier/go-toml/v2"
 )
 
@@ -22,10 +21,9 @@ type Feature interface {
 	Description() LocalizedString
 	// IsEnabled returns whether the feature is enabled
 	IsEnabled() bool
-	// Setup sets up the feature using the bot
-	Setup(bot *Bot) error
+	// Setup sets up the feature using a feature kit
+	Setup(b *Bot) error
 	// CommandCreate returns the command to create the feature
-	CommandsCreate() []discord.ApplicationCommandCreate
 }
 
 // RegisterFeature registers a feature constructor with the SDK
@@ -51,28 +49,41 @@ func (fd TomlFeaturesDefinition) ToFeatures(botName string, superset BotFeatureS
 		return nil
 	}
 
-	for featureKey, data := range botDefinitions {
-		feature, ok := knowFeatures[featureKey]
-		if !ok {
-			slog.Error(fmt.Sprintf("feature '%s' not registered, skipping", featureKey))
+	// Iterating over the superset to create the features
+	for _, botFeature := range superset {
+
+		// Getting the type of the feature
+		featureType := reflect.TypeOf(botFeature)
+
+		// Checking for the feature key in the known features
+		var featureKey string
+		for key, candidate := range knowFeatures {
+			if reflect.TypeOf(candidate) == featureType {
+				featureKey = key
+				break
+			}
+		}
+
+		// If the feature is not registered, we ignore it
+		if featureKey == "" {
+			slog.Error(fmt.Sprintf("feature '%s' not registered, skipping", featureType))
 			continue
 		}
 
-		if !superset.HasFeature(feature) {
-			slog.Info(fmt.Sprintf("feature '%s' not enabled, skipping", featureKey))
-			continue
-		}
+		// Create a new feature instance to unmarshal the data into
+		featureInstance := reflect.New(featureType).Interface().(Feature)
 
-		// create a new instance of the feature
-		featureInstance := reflect.New(reflect.TypeOf(feature)).Interface().(Feature)
+		// Retrieve the feature data from the configuration
+		dataBytes, _ := toml.Marshal(botDefinitions[featureKey])
 
-		dataBytes, _ := toml.Marshal(data)
+		// Unmarshal the data into the feature instance
 		err := toml.Unmarshal(dataBytes, featureInstance)
 		if err != nil {
 			slog.Error(fmt.Sprintf("failed to unmarshal feature '%s': %s", featureKey, err))
 			continue
 		}
 
+		// Save the feature instance
 		features = append(features, featureInstance)
 	}
 

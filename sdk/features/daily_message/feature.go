@@ -41,10 +41,6 @@ func (f DailyMessageFeature) Setup(bot *sdk.Bot) error {
 	return nil
 }
 
-func (f DailyMessageFeature) CommandsCreate() []discord.ApplicationCommandCreate {
-	return nil
-}
-
 func (cfg DailyMessageFeature) getCronSchdule() (string, error) {
 	pattern := regexp.MustCompile(`^[0-9]{1,2}:[0-9]{1,2}$`)
 	match := pattern.FindStringSubmatch(cfg.Time)

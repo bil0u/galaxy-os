@@ -33,6 +33,7 @@ func (f BotPresenceFeature) IsEnabled() bool {
 }
 
 func (f BotPresenceFeature) Setup(bot *sdk.Bot) error {
+	bot.Client.AddEventListeners(SetPresenceWhenReady(bot))
 	return nil
 }
 

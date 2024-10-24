@@ -1,14 +1,46 @@
-package log_permissions
+package features
 
 import (
 	"fmt"
 	"log/slog"
 
-	"github.com/bil0u/galaxy-os/sdk"
+	"github.com/bil0u/galaxy-os/pkg"
 	"github.com/disgoorg/disgo/bot"
 	"github.com/disgoorg/disgo/discord"
 	"github.com/disgoorg/snowflake/v2"
 )
+
+func init() {
+	pkg.RegisterFeature[LogPermissionsFeature]("log_permissions")
+}
+
+type LogPermissionsFeature struct{}
+
+func (f LogPermissionsFeature) Name() pkg.LocalizedString {
+	return pkg.LocalizedString{
+		discord.LocaleEnglishUS: "Log Permissions",
+		discord.LocaleFrench:    "Affiche les Permissions",
+	}
+}
+
+func (f LogPermissionsFeature) Description() pkg.LocalizedString {
+	return pkg.LocalizedString{
+		discord.LocaleEnglishUS: "Log the permissions of the bot",
+		discord.LocaleFrench:    "Affiche les permissions du bot",
+	}
+}
+
+func (f LogPermissionsFeature) IsEnabled() bool {
+	return true
+}
+
+func (f LogPermissionsFeature) IsProperlyConfigured() error {
+	return nil
+}
+
+func (f LogPermissionsFeature) Setup(bot *pkg.Bot) error {
+	return nil
+}
 
 func RoleFromAppCommandRole(perm discord.ApplicationCommandPermissionRole, guildRoles []discord.Role) (discord.Role, error) {
 	for _, role := range guildRoles {
@@ -108,10 +140,10 @@ func CheckBotPermissions(client bot.Client, guildID snowflake.ID) (discord.Permi
 	return rolePermissions, userPermissions, channelPermissions, nil
 }
 
-func LogPermissions(b *sdk.Bot, devGuildsOnly bool) {
+func LogPermissions(bot *pkg.Bot, devGuildsOnly bool) {
 	// Checking permissions for each Guild
-	for _, guildID := range b.Config.GetGuildsIDs(devGuildsOnly) {
-		rolePerms, userPerms, channelOverwrites, err := CheckBotPermissions(b.Client, guildID)
+	for _, guildID := range bot.Config.GetGuildsIDs(devGuildsOnly) {
+		rolePerms, userPerms, channelOverwrites, err := CheckBotPermissions(bot.Client, guildID)
 		if err != nil {
 			slog.Error("Error checking bot permissions:", slog.Any("err", err))
 		}

@@ -1,28 +1,28 @@
-package feature
+package features
 
 import (
-	"github.com/bil0u/galaxy-os/sdk"
+	"github.com/bil0u/galaxy-os/pkg"
 	"github.com/disgoorg/disgo/discord"
 	"github.com/pelletier/go-toml/v2"
 )
 
 func init() {
-	sdk.RegisterFeature[DummyFeature]("dummy_feature")
+	// pkg.RegisterFeature[DummyFeature]("dummy_feature")
 }
 
 type DummyFeature struct {
 	Enabled bool `toml:"enabled"`
 }
 
-func (f DummyFeature) Name() sdk.LocalizedString {
-	return sdk.LocalizedString{
+func (f DummyFeature) Name() pkg.LocalizedString {
+	return pkg.LocalizedString{
 		discord.LocaleEnglishUS: "Dummy",
 		discord.LocaleFrench:    "Dummy",
 	}
 }
 
-func (f DummyFeature) Description() sdk.LocalizedString {
-	return sdk.LocalizedString{
+func (f DummyFeature) Description() pkg.LocalizedString {
+	return pkg.LocalizedString{
 		discord.LocaleEnglishUS: "Dummy",
 		discord.LocaleFrench:    "Dummy",
 	}
@@ -32,7 +32,11 @@ func (f DummyFeature) IsEnabled() bool {
 	return f.Enabled
 }
 
-func (f DummyFeature) Setup(bot *sdk.Bot) error {
+func (f DummyFeature) IsProperlyConfigured() error {
+	return nil
+}
+
+func (f DummyFeature) Start(bot *pkg.Bot) error {
 	return nil
 }
 

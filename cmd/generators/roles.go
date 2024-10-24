@@ -8,7 +8,8 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/bil0u/galaxy-os/sdk"
+	"github.com/bil0u/galaxy-os/pkg"
+	"github.com/bil0u/galaxy-os/pkg/utils"
 	"github.com/disgoorg/disgo/bot"
 	"github.com/disgoorg/disgo/discord"
 	"github.com/disgoorg/snowflake/v2"
@@ -17,9 +18,9 @@ import (
 	"golang.org/x/text/unicode/norm"
 )
 
-var RoleEnumGenerator = &sdk.SourceFileGenerator{
-	OutputFile: "sdk/enums/role.go",
-	Header:     sdk.GeneratedFileHeader,
+var RolesGenerator = &pkg.SourceFileGenerator{
+	OutputFile: "pkg/enums/role.go",
+	Header:     pkg.GeneratedFileHeader,
 	TemplateFuncs: template.FuncMap{
 		"FormatRoleName": formatRoleName,
 	},
@@ -27,7 +28,7 @@ var RoleEnumGenerator = &sdk.SourceFileGenerator{
 	Template: roleEnumTemplate,
 }
 
-type roleEnumGeneratorData struct {
+type rolesGeneratorData struct {
 	Roles []discord.Role
 }
 
@@ -52,7 +53,7 @@ func fetchRoles(client bot.Client, Guilds []snowflake.ID) ([]discord.Role, error
 	return roles, nil
 }
 
-func getDiscordRoles(g *sdk.SourceFileGenerator) any {
+func getDiscordRoles(g *pkg.SourceFileGenerator) any {
 	// Fetch roles from Discord
 	roles, err := fetchRoles(g.Client, g.Config.GetGuildsIDs(false))
 	if err != nil {
@@ -60,7 +61,7 @@ func getDiscordRoles(g *sdk.SourceFileGenerator) any {
 	}
 
 	// Filtering roles to remove bot roles
-	roles = sdk.Filter(roles, func(role discord.Role) bool {
+	roles = utils.Filter(roles, func(role discord.Role) bool {
 		return role.Tags == nil || role.Tags.BotID == nil
 	})
 
@@ -69,7 +70,7 @@ func getDiscordRoles(g *sdk.SourceFileGenerator) any {
 		return r2.Position - r1.Position
 	})
 
-	return roleEnumGeneratorData{Roles: roles}
+	return rolesGeneratorData{Roles: roles}
 }
 
 const roleEnumTemplate = `

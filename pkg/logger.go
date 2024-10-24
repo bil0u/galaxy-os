@@ -1,4 +1,4 @@
-package sdk
+package pkg
 
 import (
 	"bytes"
@@ -58,15 +58,15 @@ func NewHandler(opts *slog.HandlerOptions) *LogHandler {
 	if opts == nil {
 		opts = &slog.HandlerOptions{}
 	}
-	b := &bytes.Buffer{}
+	buffer := &bytes.Buffer{}
 	return &LogHandler{
-		b: b,
-		h: slog.NewJSONHandler(b, &slog.HandlerOptions{
+		buffer: buffer,
+		handler: slog.NewJSONHandler(buffer, &slog.HandlerOptions{
 			Level:       opts.Level,
 			AddSource:   opts.AddSource,
 			ReplaceAttr: suppressDefaults(opts.ReplaceAttr),
 		}),
-		m: &sync.Mutex{},
+		mutex: &sync.Mutex{},
 	}
 }
 
@@ -95,24 +95,24 @@ func SetupLogger(cfg LogConfig) {
 }
 
 type LogHandler struct {
-	h slog.Handler
-	b *bytes.Buffer
-	m *sync.Mutex
+	handler slog.Handler
+	buffer  *bytes.Buffer
+	mutex   *sync.Mutex
 }
 
-func (h *LogHandler) Enabled(ctx context.Context, level slog.Level) bool {
-	return h.h.Enabled(ctx, level)
+func (lh *LogHandler) Enabled(ctx context.Context, level slog.Level) bool {
+	return lh.handler.Enabled(ctx, level)
 }
 
-func (h *LogHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
-	return &LogHandler{h: h.h.WithAttrs(attrs), b: h.b, m: h.m}
+func (lh *LogHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
+	return &LogHandler{handler: lh.handler.WithAttrs(attrs), buffer: lh.buffer, mutex: lh.mutex}
 }
 
-func (h *LogHandler) WithGroup(name string) slog.Handler {
-	return &LogHandler{h: h.h.WithGroup(name), b: h.b, m: h.m}
+func (lh *LogHandler) WithGroup(name string) slog.Handler {
+	return &LogHandler{handler: lh.handler.WithGroup(name), buffer: lh.buffer, mutex: lh.mutex}
 }
 
-func (h *LogHandler) Handle(ctx context.Context, r slog.Record) error {
+func (lh *LogHandler) Handle(ctx context.Context, r slog.Record) error {
 	level := r.Level.String() + ":"
 
 	switch r.Level {
@@ -126,7 +126,7 @@ func (h *LogHandler) Handle(ctx context.Context, r slog.Record) error {
 		level = colorize(lightRed, level)
 	}
 
-	attrs, err := h.computeAttrs(ctx, r)
+	attrs, err := lh.computeAttrs(ctx, r)
 	if err != nil {
 		return err
 	}
@@ -151,23 +151,30 @@ func (h *LogHandler) Handle(ctx context.Context, r slog.Record) error {
 	return nil
 }
 
-func (h *LogHandler) computeAttrs(
-	ctx context.Context,
-	r slog.Record,
-) (map[string]any, error) {
-	h.m.Lock()
+func (lh *LogHandler) computeAttrs(ctx context.Context, r slog.Record) (map[string]any, error) {
+	lh.mutex.Lock()
 	defer func() {
-		h.b.Reset()
-		h.m.Unlock()
+		lh.buffer.Reset()
+		lh.mutex.Unlock()
 	}()
-	if err := h.h.Handle(ctx, r); err != nil {
+	if err := lh.handler.Handle(ctx, r); err != nil {
 		return nil, fmt.Errorf("error when calling inner handler's Handle: %w", err)
 	}
 
 	var attrs map[string]any
-	err := json.Unmarshal(h.b.Bytes(), &attrs)
+	err := json.Unmarshal(lh.buffer.Bytes(), &attrs)
 	if err != nil {
 		return nil, fmt.Errorf("error when unmarshaling inner handler's Handle result: %w", err)
 	}
 	return attrs, nil
+}
+
+type CronLogger struct{}
+
+func (cl CronLogger) Info(msg string, keysAndValues ...any) {
+	slog.Info(fmt.Sprintf("Cron: %s", msg), keysAndValues...)
+}
+
+func (cl CronLogger) Error(err error, msg string, keysAndValues ...any) {
+	slog.Error(fmt.Sprintf("Cron: %s: %v", msg, err), keysAndValues...)
 }

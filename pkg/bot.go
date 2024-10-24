@@ -1,9 +1,8 @@
-package sdk
+package pkg
 
 import (
 	"context"
 	"fmt"
-	"log"
 	"log/slog"
 	"os"
 	"os/signal"
@@ -13,6 +12,7 @@ import (
 	"github.com/disgoorg/disgo/bot"
 	"github.com/disgoorg/disgo/discord"
 	"github.com/disgoorg/disgo/handler"
+	"github.com/disgoorg/disgo/oauth2"
 	"github.com/disgoorg/paginator"
 	"github.com/disgoorg/snowflake/v2"
 	"github.com/robfig/cron/v3"
@@ -24,6 +24,7 @@ type Bot struct {
 	Commit            string
 	Config            Config
 	Client            bot.Client
+	OAuthClient       oauth2.Client
 	Router            *handler.Mux
 	Paginator         *paginator.Manager
 	Cron              *cron.Cron
@@ -34,16 +35,14 @@ type Bot struct {
 // NewBot creates a new bot instance
 func NewBot(client bot.Client, cfg Config, name string, version string, commit string) *Bot {
 	return &Bot{
-		Name:      name,
-		Version:   version,
-		Commit:    commit,
-		Config:    cfg,
-		Client:    client,
-		Router:    handler.New(),
-		Paginator: paginator.New(),
-		Cron: cron.New(
-			cron.WithLogger(
-				cron.VerbosePrintfLogger(log.New(os.Stdout, "cron: ", log.LstdFlags)))),
+		Name:              name,
+		Version:           version,
+		Commit:            commit,
+		Config:            cfg,
+		Client:            client,
+		Router:            handler.New(),
+		Paginator:         paginator.New(),
+		Cron:              nil,
 		AvailableFeatures: nil,
 	}
 }
@@ -69,7 +68,7 @@ func (b *Bot) Setup(guilds []snowflake.ID, features BotFeatureSet) error {
 		return fmt.Errorf("invalid configuration: %v", errs)
 	}
 
-	// Setup each feature using the feature kit
+	// Start each feature using the feature kit
 	for _, feature := range features {
 		if err := feature.Setup(b); err != nil {
 			return fmt.Errorf("failed to setup feature '%s': %w", feature.Name(), err)
@@ -79,11 +78,13 @@ func (b *Bot) Setup(guilds []snowflake.ID, features BotFeatureSet) error {
 	return nil
 }
 
+// AddCommandsToSync adds commands to the list of commands to sync
 func (b *Bot) AddCommandsToSync(commands ...discord.ApplicationCommandCreate) {
 	b.CommandsToSync = append(b.CommandsToSync, commands...)
 }
 
-func (b *Bot) SyncCommands() error {
+// syncCommands syncs the commands to the Discord API
+func (b *Bot) syncCommands() error {
 
 	var errors []error
 
@@ -113,9 +114,17 @@ func (b *Bot) SyncCommands() error {
 	return nil
 }
 
-func (b *Bot) Start() error {
+// Start starts the bot
+func (b *Bot) Start(syncCommands, enableCron, enableOAuth2 bool) error {
 
 	slog.Info(fmt.Sprintf("Starting bot '%s' ...", b.Name))
+
+	// Sync commands
+	if syncCommands {
+		if err := b.syncCommands(); err != nil {
+			return fmt.Errorf("failed to sync commands: %w", err)
+		}
+	}
 
 	// Deferring client close
 	slog.Info("Deferring client close")
@@ -125,32 +134,38 @@ func (b *Bot) Start() error {
 		b.Client.Close(ctx)
 	}()
 
-	// Open gateway
-	slog.Info("Opening gateway")
+	// Create context with timeout
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	if b.Client.HasShardManager() {
-		// if err := b.Client.OpenGateway(ctx); err != nil {
+		slog.Info("Opening gateway using shard manager")
 		if err := b.Client.OpenShardManager(ctx); err != nil {
 			return fmt.Errorf("failed to open gateway through shard manager: %w", err)
 		}
 	} else {
+		slog.Info("Opening gateway")
 		if err := b.Client.OpenGateway(ctx); err != nil {
 			return fmt.Errorf("failed to open gateway: %w", err)
 		}
 	}
 
-	// Start cron
-	slog.Info("Starting cron")
-	b.Cron.Start()
+	if enableCron {
+		slog.Info("Starting Cron")
+		b.Cron.Start()
+	}
 
 	// Wait for signal to shutdown
-	slog.Info("Bot is running. Press CTRL-C to exit.")
+	slog.Info("Bot is running 🚀\nPress CTRL-C to exit.")
 	s := make(chan os.Signal, 1)
 	signal.Notify(s, syscall.SIGINT, syscall.SIGTERM)
 	<-s
 	slog.Info("Shutting down bot...")
-	b.Cron.Stop()
+	b.Stop()
 	return nil
+}
+
+// Stop stops the bot
+func (b *Bot) Stop() {
+	b.Cron.Stop()
 }

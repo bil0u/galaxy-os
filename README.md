@@ -14,5 +14,5 @@ This document will guide you through the structure and architecture of the proje
 
 ```
 cmd/ # Contains the main package and a specific configuration for each bot
-sdk/ # Contains all shared modules
+pkg/ # Contains all shared modules
 ```

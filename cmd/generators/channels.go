@@ -8,7 +8,8 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/bil0u/galaxy-os/sdk"
+	"github.com/bil0u/galaxy-os/pkg"
+	"github.com/bil0u/galaxy-os/pkg/utils"
 	"github.com/disgoorg/disgo/bot"
 	"github.com/disgoorg/disgo/discord"
 	"github.com/disgoorg/snowflake/v2"
@@ -17,9 +18,9 @@ import (
 	"golang.org/x/text/unicode/norm"
 )
 
-var ChannelEnumGenerator = &sdk.SourceFileGenerator{
-	OutputFile: "sdk/enums/channel.go",
-	Header:     sdk.GeneratedFileHeader,
+var ChannelsGenerator = &pkg.SourceFileGenerator{
+	OutputFile: "pkg/enums/channel.go",
+	Header:     pkg.GeneratedFileHeader,
 	TemplateFuncs: template.FuncMap{
 		"FormatChannelName": formatChannelName,
 	},
@@ -27,7 +28,7 @@ var ChannelEnumGenerator = &sdk.SourceFileGenerator{
 	Template: channelEnumTemplate,
 }
 
-type channelEnumGeneratorData struct {
+type channelsGeneratorData struct {
 	CategoryChannels []discord.GuildChannel
 	Channels         []discord.GuildChannel
 }
@@ -57,23 +58,23 @@ func getParentChannel(channel discord.GuildChannel, candidates []discord.GuildCh
 	if channel.ParentID() == nil {
 		return nil
 	}
-	return sdk.Find(candidates, func(c discord.GuildChannel) bool {
+	return utils.Find(candidates, func(c discord.GuildChannel) bool {
 		return c.ID().String() == channel.ParentID().String()
 	})
 }
 
-func getDiscordChannels(g *sdk.SourceFileGenerator) any {
+func getDiscordChannels(g *pkg.SourceFileGenerator) any {
 	// Fetch roles from Discord
 	channels, err := fetchGuildChannels(g.Client, g.Config.GetGuildsIDs(false))
 	if err != nil {
 		log.Fatalf("Failed to fetch channels: %v", err)
 	}
 
-	categoryChannels := sdk.Filter(channels, func(channel discord.GuildChannel) bool {
+	categoryChannels := utils.Filter(channels, func(channel discord.GuildChannel) bool {
 		return channel.Type() == discord.ChannelTypeGuildCategory
 	})
 
-	channels = sdk.Filter(channels, func(channel discord.GuildChannel) bool {
+	channels = utils.Filter(channels, func(channel discord.GuildChannel) bool {
 		return channel.Type() == discord.ChannelTypeGuildText ||
 			channel.Type() == discord.ChannelTypeGuildVoice ||
 			channel.Type() == discord.ChannelTypeGuildNews ||
@@ -121,10 +122,10 @@ func getDiscordChannels(g *sdk.SourceFileGenerator) any {
 			return c1.Position() - c2.Position()
 		}
 
-		return sdk.IndexOf(typePriority, c1.Type()) - sdk.IndexOf(typePriority, c2.Type())
+		return utils.IndexOf(typePriority, c1.Type()) - utils.IndexOf(typePriority, c2.Type())
 
 	})
-	return channelEnumGeneratorData{
+	return channelsGeneratorData{
 		CategoryChannels: categoryChannels,
 		Channels:         channels,
 	}

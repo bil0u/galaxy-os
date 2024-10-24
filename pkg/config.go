@@ -1,19 +1,18 @@
-package sdk
+package pkg
 
 import (
 	"fmt"
 	"log/slog"
 
+	"github.com/bil0u/galaxy-os/pkg/utils"
 	"github.com/disgoorg/snowflake/v2"
 )
 
-// Bot configuration
-
-// Guild configuration
-const botConfigFormat = "config.%s.toml"
-const guildConfigFormat = "guild.%s.toml"
-
-var defaultBotConfigFile = fmt.Sprintf(botConfigFormat, "default")
+var (
+	botConfigFormat      = "config.%s.toml"
+	guildConfigFormat    = "guild.%s.toml"
+	defaultBotConfigFile = fmt.Sprintf(botConfigFormat, "default")
+)
 
 // -- GLOBAL CONFIGURATION --
 
@@ -44,7 +43,7 @@ func NewConfig(botName, configFile, configDir string) (Config, error) {
 	defaultConfigPath := fmt.Sprintf("%s/%s", configDir, defaultBotConfigFile)
 
 	// Load generic config file
-	err := LoadFromFile(defaultConfigPath, &config)
+	err := utils.LoadFromFile(defaultConfigPath, &config)
 	if err != nil {
 		return config, fmt.Errorf("encountered error while loading default config '%s'", defaultBotConfigFile)
 	}
@@ -58,7 +57,7 @@ func NewConfig(botName, configFile, configDir string) (Config, error) {
 
 	// Load bot specific config using the same logic
 	if botConfigPath != defaultConfigPath {
-		err = LoadFromFile(botConfigPath, &config)
+		err = utils.LoadFromFile(botConfigPath, &config)
 		if err != nil {
 			return config, fmt.Errorf("encountered error while loading bot config '%s'", configFile)
 		}
@@ -116,6 +115,7 @@ func (cfg LogConfig) Validate() (errs []error) {
 type BotConfig struct {
 	Token         string       `toml:"token"`
 	ApplicationID snowflake.ID `toml:"application_id"`
+	ClientSecret  string       `toml:"client_secret"`
 }
 
 func (cfg BotConfig) Validate() (errs []error) {
@@ -171,11 +171,11 @@ func NewGuildConfig(guildID snowflake.ID, botName string, allowedFeatures BotFea
 
 	guildConfigFile := fmt.Sprintf(guildConfigFormat, guildID)
 
-	LoadFromFile(guildConfigFile, &guildCfg)
+	utils.LoadFromFile(guildConfigFile, &guildCfg)
 
 	// From the same file, load the features definition
 	featuresDefinition := TomlFeaturesDefinition{}
-	LoadFromFile(guildConfigFile, &featuresDefinition)
+	utils.LoadFromFile(guildConfigFile, &featuresDefinition)
 
 	// Convert the features definition to actual features, filtering by bot name and allowed features
 	guildCfg.Features = featuresDefinition.ToFeatures(botName, allowedFeatures)

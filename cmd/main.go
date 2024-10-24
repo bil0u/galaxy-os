@@ -6,16 +6,19 @@ import (
 	"log/slog"
 	"os"
 
-	"github.com/bil0u/galaxy-os/sdk"
+	"github.com/bil0u/galaxy-os/cmd/generators"
+	"github.com/bil0u/galaxy-os/pkg"
+	"github.com/bil0u/galaxy-os/pkg/features"
 	"github.com/disgoorg/disgo/cache"
 	"github.com/disgoorg/disgo/gateway"
 	"github.com/disgoorg/snowflake/v2"
 )
 
 var (
-	development string = "false"
-	version     string = "dev"
-	commit      string = "unknown"
+	development  string = "false"
+	version      string = "dev"
+	commit       string = "unknown"
+	botsFeatures map[string]pkg.BotFeatureSet
 )
 
 // Storing flags in a struct
@@ -25,6 +28,36 @@ type CliFlags struct {
 	configDirectory string
 	syncCommands    bool
 	runAsGenerator  bool
+	enableCron      bool
+	enableOAuth2    bool
+}
+
+func init() {
+
+	pkg.RegisterGenerator(generators.RolesGenerator)
+	pkg.RegisterGenerator(generators.ChannelsGenerator)
+
+	botsFeatures = map[string]pkg.BotFeatureSet{
+		"hue": {
+			// Default Features
+			features.BotPresenceFeature{},
+			features.BotInfosFeature{},
+			features.LogPermissionsFeature{},
+			features.TestCommandFeature{},
+			features.SelfAssignRolesFeature{},
+			// Hue specific Features
+			features.DailyMessageFeature{},
+			features.SuspiciousInterwiewFeature{},
+		},
+		"kevin": {
+			// Default Features
+			features.BotPresenceFeature{},
+			features.BotInfosFeature{},
+			features.LogPermissionsFeature{},
+			features.TestCommandFeature{},
+			features.SelfAssignRolesFeature{},
+		},
+	}
 }
 
 func main() {
@@ -37,10 +70,12 @@ func main() {
 	flag.StringVar(&flags.configDirectory, "config-dir", ".", "Path to the directory in which to find the config file")
 	flag.BoolVar(&flags.syncCommands, "sync-commands", false, "Whether to sync commands with discord API")
 	flag.BoolVar(&flags.runAsGenerator, "generator", false, "Whether to run the bot in generator mode")
+	flag.BoolVar(&flags.enableCron, "enable-cron", false, "Whether to enable cron jobs")
+	flag.BoolVar(&flags.enableOAuth2, "enable-oauth2", false, "Whether to enable oauth2 server")
 	flag.Parse()
 
 	// Get configuration from file
-	config, err := sdk.NewConfig(flags.botName, flags.configFile, flags.configDirectory)
+	config, err := pkg.NewConfig(flags.botName, flags.configFile, flags.configDirectory)
 	if err != nil {
 		slog.Error("Failed to create config", slog.Any("err", err))
 		os.Exit(-1)
@@ -51,7 +86,7 @@ func main() {
 	// Run bot in generate mode if needed
 	if flags.runAsGenerator {
 		config.Log.AddSource = true
-		sdk.SetupLogger(config.Log)
+		pkg.SetupLogger(config.Log)
 		err := startGenerator(config)
 		if err != nil {
 			slog.Error("Failed to start bot generators", slog.Any("err", err))
@@ -61,8 +96,8 @@ func main() {
 	}
 
 	// Run bot in normal mode
-	sdk.SetupLogger(config.Log)
-	if err := startBot(flags.botName, config, flags.syncCommands); err != nil {
+	pkg.SetupLogger(config.Log)
+	if err := startBot(flags.botName, config, flags.syncCommands, flags.enableCron, flags.enableOAuth2); err != nil {
 		slog.Error("Failed to start bot", slog.Any("err", err))
 		os.Exit(-1)
 	}
@@ -70,9 +105,11 @@ func main() {
 
 // Regular bot mode
 
-func startBot(botName string, config sdk.Config, syncCommands bool) error {
+func startBot(botName string, config pkg.Config, syncCommands, enableCron, enableOAuth2 bool) error {
 
-	dummyClient, err := sdk.NewBotClient(config.Bot.Token, nil, nil)
+	dummyClient, err := pkg.NewBotClient(config.Bot.Token, []gateway.Intents{
+		gateway.IntentGuilds,
+	}, nil)
 	if err != nil {
 		return fmt.Errorf("error while building disgo dummy client: %w", err)
 	}
@@ -82,6 +119,12 @@ func startBot(botName string, config sdk.Config, syncCommands bool) error {
 	if err != nil {
 		return fmt.Errorf("failed to fetch bot guilds: %w", err)
 	}
+
+	if len(botGuilds) == 0 {
+		return fmt.Errorf("bot is not in any guild")
+	}
+
+	// Retrieve guild IDs
 	guildIDs := make([]snowflake.ID, len(botGuilds))
 	for i, guild := range botGuilds {
 		guildIDs[i] = guild.ID
@@ -90,16 +133,16 @@ func startBot(botName string, config sdk.Config, syncCommands bool) error {
 	// Creating client using token
 	botIntents := []gateway.Intents{gateway.IntentsAll}
 	botCaches := []cache.Flags{cache.FlagsAll}
-	botClient, err := sdk.NewBotShardedClient(len(guildIDs), config.Bot.Token, botIntents, botCaches)
+	botClient, err := pkg.NewBotShardedClient(len(guildIDs), config.Bot.Token, botIntents, botCaches)
 	if err != nil {
 		return err
 	}
 
 	// Create bot
-	bot := sdk.NewBot(botClient, config, botName, version, commit)
+	bot := pkg.NewBot(botClient, config, botName, version, commit)
 
 	// Get bot features
-	features, ok := BotsFeatures[botName]
+	features, ok := botsFeatures[botName]
 	if !ok {
 		return fmt.Errorf("features not found for bot '%s'", botName)
 	}
@@ -109,32 +152,24 @@ func startBot(botName string, config sdk.Config, syncCommands bool) error {
 		return err
 	}
 
-	// Sync commands if needed
-	if syncCommands {
-		err = bot.SyncCommands()
-		if err != nil {
-			return err
-		}
-	}
-
 	// Start bot
-	return bot.Start()
+	return bot.Start(syncCommands, enableCron, enableOAuth2)
 }
 
 // Generator mode
 
-func startGenerator(config sdk.Config) error {
+func startGenerator(config pkg.Config) error {
 
 	slog.Info("Running bot in generator mode...")
 
 	// Creating client to interact with discord
-	client, err := sdk.NewBotClient(config.Bot.Token, nil, nil)
+	client, err := pkg.NewBotClient(config.Bot.Token, nil, nil)
 	if err != nil {
 		return err
 	}
 
 	// Run generators
-	sdk.RunAllGenerators(client, config)
+	pkg.RunAllGenerators(client, config)
 	slog.Info("Complete!")
 	return nil
 }

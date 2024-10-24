@@ -1,4 +1,4 @@
-package sdk
+package pkg
 
 import (
 	"fmt"
@@ -8,7 +8,6 @@ import (
 	"github.com/disgoorg/disgo/cache"
 	"github.com/disgoorg/disgo/gateway"
 	"github.com/disgoorg/disgo/sharding"
-	"github.com/disgoorg/snowflake/v2"
 )
 
 // NewBotClient creates a new bot client, with the provided token and parts
@@ -44,12 +43,12 @@ func NewBotShardedClient(shardCount int, token string, intents []gateway.Intents
 	return client, nil
 }
 
-func GetGuildIDFromShardID(shardID int, guilds []snowflake.ID) snowflake.ID {
-	// Iterate over all guilds and find one whose ShardID matches the given ShardID
-	for _, guildID := range guilds {
-		if sharding.ShardIDByGuild(guildID, len(guilds)) == shardID {
-			return guildID
-		}
-	}
-	return 0 // or return an error
-}
+// func GetGuildIDFromShardID(shardID int, guilds []snowflake.ID) snowflake.ID {
+// 	// Iterate over all guilds and find one whose ShardID matches the given ShardID
+// 	for _, guildID := range guilds {
+// 		if sharding.ShardIDByGuild(guildID, len(guilds)) == shardID {
+// 			return guildID
+// 		}
+// 	}
+// 	return 0 // or return an error
+// }

@@ -11,6 +11,7 @@ source = cmd/*.go
 target = /tmp/bin/${bot}
 buildArgs = -ldflags "-X 'main.version=${version}' -X 'main.commit=${commit}' -X 'main.development=true'"
 runArgs = --bot=${bot} --sync-commands
+runExtraArgs = 
 
 # =======
 # HELPERS
@@ -75,7 +76,7 @@ build: tidy
 #   -> Include additional build steps, like TypeScript, SCSS or Tailwind compilation here...
 
 run: build
-	${target} ${runArgs}
+	${target} ${runArgs} ${runExtraArgs}
 
 ## generate: generate go code
 generate:
@@ -91,16 +92,17 @@ build/kevin: build
 
 ## run/hue: run the Hue bot
 run/hue: bot = hue
+run/hue: runExtraArgs = --enable-cron --enable-oauth2
 run/hue: run
 
 ## run/kevin: run the Kevin bot
 run/kevin: bot = kevin
 run/kevin: run
 
-## run/generator: run the Hue bot in generator mode
-run/generator: bot = generator
-run/generator: runArgs = --bot=hue --generator
-run/generator: run generate
+## generate/hue: run the Hue bot in generator mode
+generate/hue: bot = hue
+generate/hue: runExtraArgs = --generator
+generate/hue: run generate
 
 # ==========
 # PRODUCTION

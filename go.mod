@@ -1,9 +1,9 @@
 module github.com/bil0u/galaxy-os
 
-go 1.23.1
+go 1.23.2
 
 require (
-	github.com/disgoorg/disgo v0.18.12
+	github.com/disgoorg/disgo v0.18.13
 	github.com/disgoorg/json v1.2.0
 	github.com/disgoorg/paginator v0.0.0-20240725182907-1bdf780b5586
 	github.com/disgoorg/snowflake/v2 v2.0.3

@@ -2,12 +2,11 @@
 .env
 config*.toml
 guild*.toml
-!config.sample.toml
-!guild.sample.toml
+!config.example.toml
+!guild.example.toml
 
 # Build targets
 bin/
-out/
 
 # Temporary object files
 *.o

@@ -1,0 +1,14 @@
+# There should be one config per bot in bots/ with the name config.<botname>.toml
+
+[log]
+# valid levels are "debug", "info", "warn", "error"
+level = "info"
+# valid formats are "text" and "json"
+format = "text"
+# whether to add the log source to the log message
+add_source = true
+
+[bots.name]
+# ApplicationID and Token are required
+application_id = 0
+token = ""

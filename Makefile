@@ -4,14 +4,13 @@ ifneq (,$(wildcard ./.env))
 	export
 endif
 
+package = github.com/bil0u/galaxy-os
 bot ?= default
 version = dev
 commit = $(shell git rev-parse --short HEAD)
-source = cmd/*.go
-target = /tmp/bin/${bot}
-buildArgs = -ldflags "-X 'main.version=${version}' -X 'main.commit=${commit}' -X 'main.development=true'"
-runArgs = --bot=${bot} --sync-commands
-runExtraArgs = 
+target = bin/${bot}
+ldFlags = "-X '${package}/cmd.bot=${bot}' -X '${package}/cmd.version=${version}' -X '${package}/cmd.commit=${commit}' -X '${package}/cmd.development=true'"
+runArgs = 
 
 # =======
 # HELPERS
@@ -72,15 +71,14 @@ push: confirm audit no-dirty
 	git push
 
 build: tidy
-	go build ${buildArgs} -o=${target} ${source}
-#   -> Include additional build steps, like TypeScript, SCSS or Tailwind compilation here...
+	go build  -ldflags ${ldFlags} -o=${target} main.go
 
 run: build
-	${target} ${runArgs} ${runExtraArgs}
+	${target} bot start ${runArgs}
 
-## generate: generate go code
-generate:
-	WORKDIR=$(shell pwd) go generate ./...
+## clean: remove the built binary
+clean:
+	rm -f ${target}
 
 ## build/hue: build the Hue bot
 build/hue: bot = hue
@@ -92,17 +90,12 @@ build/kevin: build
 
 ## run/hue: run the Hue bot
 run/hue: bot = hue
-run/hue: runExtraArgs = --enable-cron --enable-oauth2
+run/hue: runArgs = --cron --oauth2
 run/hue: run
 
 ## run/kevin: run the Kevin bot
 run/kevin: bot = kevin
 run/kevin: run
-
-## generate/hue: run the Hue bot in generator mode
-generate/hue: bot = hue
-generate/hue: runExtraArgs = --generator
-generate/hue: run generate
 
 # ==========
 # PRODUCTION
@@ -112,10 +105,10 @@ generate/hue: run generate
 
 deploy: target = /tmp/bin/linux_amd64/${bot}
 deploy: version = $(shell git describe --tags --always --dirty)
-deploy: buildArgs = -ldflags "-X 'main.commit=${commit}' -X 'main.version=${version}' -s"
-deploy: runArgs = --bot=${bot} --sync-commands
+deploy: ldFlags = -ldflags "-X 'cmd.bot=${bot}' -X 'cmd.version=${version}' -X 'cmd.commit=${commit}' -s"
+deploy: runArgs = 
 deploy: confirm audit no-dirty
-	GOOS=linux GOARCH=amd64 go build ${buildArgs} -o=${target} ${source}
+	GOOS=linux GOARCH=amd64 go build -ldflags ${ldFlags} -o=${target} main.go
 	upx -5 ${target}
 	# Include additional deployment steps here...
 

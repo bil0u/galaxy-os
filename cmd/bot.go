@@ -14,8 +14,12 @@ import (
 	bot_features "github.com/bil0u/galaxy-os/internal/features/bot"
 	guild_features "github.com/bil0u/galaxy-os/internal/features/guild"
 	"github.com/bil0u/galaxy-os/internal/services"
+	"github.com/disgoorg/disgo"
+	disbot "github.com/disgoorg/disgo/bot"
 	"github.com/disgoorg/disgo/cache"
 	"github.com/disgoorg/disgo/gateway"
+	"github.com/disgoorg/disgo/handler"
+	"github.com/disgoorg/paginator"
 	"github.com/spf13/cobra"
 )
 
@@ -100,13 +104,20 @@ func startBot(cmd *cobra.Command, _ []string) error {
 		return fmt.Errorf("initializing logger: %w", err)
 	}
 
-	if _, err := services.InitDiscordClient(botCfg.Token, def.cacheFlags, def.intents); err != nil {
-		return fmt.Errorf("initializing discord client: %w", err)
+	client, err := disgo.New(botCfg.Token,
+		disbot.WithCacheConfigOpts(cache.WithCaches(def.cacheFlags)),
+		disbot.WithGatewayConfigOpts(
+			gateway.WithIntents(def.intents),
+			gateway.WithCompress(true),
+		),
+	)
+	if err != nil {
+		return fmt.Errorf("building discord client: %w", err)
 	}
 
 	ctx := context.Background()
 
-	guilds, err := config.InitGuilds(ctx, services.RestClient(), bot)
+	guilds, err := config.InitGuilds(ctx, client.Rest(), bot)
 	if err != nil {
 		return fmt.Errorf("initializing guilds config: %w", err)
 	}
@@ -116,10 +127,9 @@ func startBot(cmd *cobra.Command, _ []string) error {
 	slog.Debug(fmt.Sprintf("Log configuration: %+v", logCfg))
 	slog.Debug(fmt.Sprintf("Guilds configuration: %+v", guilds))
 
-	client := services.Client()
-
-	services.InitRouter()
-	services.InitPaginator(client)
+	router := handler.New()
+	pgn := paginator.New()
+	client.AddEventListeners(router, pgn)
 
 	if enableCron {
 		services.InitCron()
@@ -137,7 +147,7 @@ func startBot(cmd *cobra.Command, _ []string) error {
 	deps := features.SetupDeps{
 		Bot: features.BotServices{
 			Client: client,
-			Router: services.Router(),
+			Router: router,
 			Logger: slog.Default(),
 		},
 		Shared: features.SharedServices{

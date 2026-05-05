@@ -8,15 +8,15 @@ import (
 	"github.com/spf13/viper"
 )
 
-// `GuildConfig` holds the configuration for a specific guild.
-type GuildConfig struct {
+// Guild holds the configuration for a specific guild.
+type Guild struct {
 	DevGuild     bool         `mapstructure:"dev_guild"`
 	Timezone     string       `mapstructure:"timezone"`
 	FeaturesDefs *viper.Viper `mapstructure:"-"`
 }
 
 // `validate` validates the guild configuration.
-func (config GuildConfig) validate() error {
+func (config Guild) validate() error {
 	var errs []error
 
 	if config.Timezone == "" {
@@ -26,9 +26,9 @@ func (config GuildConfig) validate() error {
 	return errors.Join(errs...)
 }
 
-// `NewGuildConfig` creates a new GuildConfig object from a viper configuration.
-func NewGuildConfig(cfg *viper.Viper, botName string) (*GuildConfig, error) {
-	newCfg := &GuildConfig{}
+// NewGuild creates a new Guild from a viper configuration.
+func NewGuild(cfg *viper.Viper, botName string) (*Guild, error) {
+	newCfg := &Guild{}
 
 	if cfg != nil {
 		if err := cfg.Unmarshal(newCfg); err != nil {
@@ -42,22 +42,22 @@ func NewGuildConfig(cfg *viper.Viper, botName string) (*GuildConfig, error) {
 
 // --------------------------------------------------------------------
 
-// `GuildsConfigs` is a wrapper type for multiple guild configurations.
-type GuildsConfigs map[snowflake.ID]*GuildConfig
+// GuildMap is a wrapper type for multiple guild configurations.
+type GuildMap map[snowflake.ID]*Guild
 
 // `Count` returns the number of guild configurations.
-func (gc GuildsConfigs) Count() int {
+func (gc GuildMap) Count() int {
 	return len(gc)
 }
 
 // `All` returns all guild configurations.
-func (gc GuildsConfigs) All() map[snowflake.ID]*GuildConfig {
+func (gc GuildMap) All() map[snowflake.ID]*Guild {
 	return gc
 }
 
 // `Dev` returns all guild configurations for development guilds.
-func (gc GuildsConfigs) Dev() map[snowflake.ID]*GuildConfig {
-	devGuilds := make(map[snowflake.ID]*GuildConfig)
+func (gc GuildMap) Dev() map[snowflake.ID]*Guild {
+	devGuilds := make(map[snowflake.ID]*Guild)
 	for id, guildConfig := range gc {
 		if guildConfig.DevGuild {
 			devGuilds[id] = guildConfig
@@ -67,7 +67,7 @@ func (gc GuildsConfigs) Dev() map[snowflake.ID]*GuildConfig {
 }
 
 // `GetIDs` returns a list of guild IDs for all guilds in the configuration.
-func (gc GuildsConfigs) IDs(devOnly bool) []snowflake.ID {
+func (gc GuildMap) IDs(devOnly bool) []snowflake.ID {
 	guildsIDs := make([]snowflake.ID, 0)
 	for id, guildConfig := range gc {
 		if !devOnly || guildConfig.DevGuild {
@@ -78,12 +78,12 @@ func (gc GuildsConfigs) IDs(devOnly bool) []snowflake.ID {
 }
 
 // `Get` returns a list of guild IDs for all guilds in the configuration.
-func (gc GuildsConfigs) Get(guildID snowflake.ID) *GuildConfig {
+func (gc GuildMap) Get(guildID snowflake.ID) *Guild {
 	return gc[guildID]
 }
 
 // `Set` sets a guild configuration for a specific guild.
-func (gc *GuildsConfigs) Set(guildID snowflake.ID, config *GuildConfig) error {
+func (gc *GuildMap) Set(guildID snowflake.ID, config *Guild) error {
 	_, ok := (*gc)[guildID]
 	if ok {
 		return fmt.Errorf("guild configuration already exists")
@@ -93,6 +93,6 @@ func (gc *GuildsConfigs) Set(guildID snowflake.ID, config *GuildConfig) error {
 }
 
 // `Override` overrides a guild configuration for a specific guild.
-func (gc *GuildsConfigs) Override(guildID snowflake.ID, config *GuildConfig) {
+func (gc *GuildMap) Override(guildID snowflake.ID, config *Guild) {
 	(*gc)[guildID] = config
 }

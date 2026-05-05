@@ -29,11 +29,11 @@ func InitDiscordClient(token string, caches []cache.Flags, intents []gateway.Int
 	return discord.InitClient(token, caches, intents)
 }
 
-func GetClient() bot.Client {
+func Client() bot.Client {
 	return discord.Client()
 }
 
-func GetRestClient() rest.Rest {
+func RestClient() rest.Rest {
 	client := discord.Client()
 	if client == nil {
 		return nil
@@ -49,7 +49,7 @@ func InitPaginator(client bot.Client) *paginator.Manager {
 	return p
 }
 
-func GetPaginator() *paginator.Manager {
+func Paginator() *paginator.Manager {
 	return discord.Paginator()
 }
 
@@ -59,7 +59,7 @@ func InitRouter() *handler.Mux {
 	return discord.InitRouter()
 }
 
-func GetRouter() *handler.Mux {
+func Router() *handler.Mux {
 	return discord.Router()
 }
 
@@ -69,7 +69,7 @@ func InitEmail(ctx context.Context) (*sesv2.Client, error) {
 	return email.Init(ctx)
 }
 
-func GetEmailClient() *sesv2.Client {
+func EmailClient() *sesv2.Client {
 	return email.Client()
 }
 
@@ -79,7 +79,7 @@ func InitLogger(level slog.Level, format string, addSource bool) (*slog.Logger, 
 	return logger.Init(level, format, addSource)
 }
 
-func GetLogger() *slog.Logger {
+func Logger() *slog.Logger {
 	return logger.Logger()
 }
 
@@ -89,7 +89,7 @@ func InitOAuth(applicationID snowflake.ID, clientSecret, baseURL string) oauth2.
 	return oauth.Init(applicationID, clientSecret, baseURL)
 }
 
-func GetOAuthClient() oauth2.Client {
+func OAuthClient() oauth2.Client {
 	return oauth.Client()
 }
 
@@ -103,7 +103,7 @@ func InitSQL(ctx context.Context, pgURL string) (*pgxpool.Pool, error) {
 	return sql.Init(ctx, pgURL)
 }
 
-func GetPool() *pgxpool.Pool {
+func Pool() *pgxpool.Pool {
 	return sql.Pool()
 }
 
@@ -113,7 +113,7 @@ func InitCron() *cron.Cron {
 	return cronjobs.InitCron()
 }
 
-func GetCron() *cron.Cron {
+func Cron() *cron.Cron {
 	return cronjobs.Scheduler()
 }
 

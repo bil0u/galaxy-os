@@ -3,11 +3,12 @@ package guild_features
 import (
 	"fmt"
 	"log/slog"
+	"slices"
 
 	"github.com/bil0u/galaxy-os/internal/config"
 	"github.com/bil0u/galaxy-os/internal/features"
 	"github.com/bil0u/galaxy-os/internal/services"
-	"github.com/bil0u/galaxy-os/internal/utils"
+	"github.com/bil0u/galaxy-os/internal/locale"
 	disbot "github.com/disgoorg/disgo/bot"
 	"github.com/disgoorg/disgo/discord"
 	"github.com/disgoorg/disgo/events"
@@ -17,11 +18,11 @@ import (
 var SelfAssignRolesFeature = features.New[SelfAssignRolesConfig](
 	setupSelfAssignRolesFeature,
 	features.WithType(features.GuildFeature),
-	features.WithName(utils.LocalizedString{
+	features.WithName(locale.Text{
 		discord.LocaleEnglishUS: "Self assign roles",
 		discord.LocaleFrench:    "Auto-attribution de rôles",
 	}),
-	features.WithDescription(utils.LocalizedString{
+	features.WithDescription(locale.Text{
 		discord.LocaleEnglishUS: "The bot will assign roles to itself automatically",
 		discord.LocaleFrench:    "Le bot s'attribuera des rôles automatiquement",
 	}),
@@ -52,7 +53,7 @@ func setupSelfAssignRolesFeature(deps features.SetupDeps) error {
 // selfAssignRoles returns an event listener that assigns roles to the bot for each guild
 func selfAssignRoles(_ *events.Ready) {
 	// Looping through each guild to assign roles
-	for _, guildID := range config.Guilds.IDs(config.Global.Development) {
+	for _, guildID := range config.GuildsCfg.IDs(config.GlobalCfg.Development) {
 
 		// Getting feature config for guild
 		cfg, _ := features.GetConfig[SelfAssignRolesConfig](guildID)
@@ -85,9 +86,9 @@ func selfAssignRoles(_ *events.Ready) {
 
 // getAssignedRoles returns the roles assigned to the bot in the provided guild
 func getAssignedRoles(guildID snowflake.ID) ([]snowflake.ID, error) {
-	restClient := services.GetRestClient()
+	restClient := services.RestClient()
 
-	botUser, err := restClient.GetMember(guildID, config.Bot.ApplicationID)
+	botUser, err := restClient.GetMember(guildID, config.BotCfg.ApplicationID)
 	if err != nil {
 		return nil, err
 	}
@@ -98,7 +99,7 @@ func getAssignedRoles(guildID snowflake.ID) ([]snowflake.ID, error) {
 // RemoveBotRoles removes the provided roles from the bot in the provided guild
 func removeBotRoles(guildID snowflake.ID, roles []snowflake.ID) error {
 
-	restClient := services.GetRestClient()
+	restClient := services.RestClient()
 
 	// Getting user using the bot ID
 	botUser, err := restClient.GetCurrentUser("")
@@ -128,7 +129,7 @@ func removeBotRoles(guildID snowflake.ID, roles []snowflake.ID) error {
 // assignBotRoles assigns the provided roles to the bot in the provided guild
 func assignBotRoles(guildID snowflake.ID, roles, existingRoles []snowflake.ID) error {
 
-	restClient := services.GetRestClient()
+	restClient := services.RestClient()
 	// Getting user using the bot ID
 	botUser, err := restClient.GetCurrentUser("")
 	if err != nil {
@@ -140,7 +141,7 @@ func assignBotRoles(guildID snowflake.ID, roles, existingRoles []snowflake.ID) e
 	for _, roleID := range roles {
 		// Assign each role to the bot
 
-		if utils.Contains(existingRoles, roleID) {
+		if slices.Contains(existingRoles, roleID) {
 			slog.Info(fmt.Sprintf("Role '%s' already assigned to bot in guild '%s'. Skipping.", roleID.String(), guildID.String()))
 			continue
 		}

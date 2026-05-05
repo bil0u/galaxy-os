@@ -5,8 +5,8 @@ import (
 	"log/slog"
 
 	"github.com/bil0u/galaxy-os/internal/features"
+	"github.com/bil0u/galaxy-os/internal/locale"
 	"github.com/bil0u/galaxy-os/internal/services"
-	"github.com/bil0u/galaxy-os/internal/utils"
 	disbot "github.com/disgoorg/disgo/bot"
 	"github.com/disgoorg/disgo/discord"
 	"github.com/disgoorg/disgo/events"
@@ -17,7 +17,7 @@ import (
 type SuspiciousInterviewConfig struct {
 	Enabled             bool
 	DetectRoles         []snowflake.ID
-	Questions           utils.Interview
+	Questions           Interview
 	IfSuccess           snowflake.ID
 	IfFailure           snowflake.ID
 	ClearAfterInterview bool
@@ -52,11 +52,11 @@ func (f SuspiciousInterviewConfig) Validate() error {
 var SuspiciousInterviewFeature = features.New[SuspiciousInterviewConfig](
 	setupSuspiciousInterviewFeature,
 	features.WithType(features.GuildFeature),
-	features.WithName(utils.LocalizedString{
+	features.WithName(locale.Text{
 		discord.LocaleEnglishUS: "Suspicious Role Interview",
 		discord.LocaleFrench:    "Entretien des rôles suspects",
 	}),
-	features.WithDescription(utils.LocalizedString{
+	features.WithDescription(locale.Text{
 		discord.LocaleEnglishUS: "Interview users with suspicious roles with a set of questions, and assign them a role based on their answers",
 		discord.LocaleFrench:    "Interviewer les utilisateurs avec des rôles suspects, et leur attribuer un rôle en fonction de leurs réponses",
 	}),
@@ -76,7 +76,7 @@ func setupSuspiciousInterviewFeature(deps features.SetupDeps) error {
 			return
 		}
 
-		restClient := services.GetRestClient()
+		restClient := services.RestClient()
 
 		preferedLocale := discord.LocaleEnglishUS
 
@@ -113,24 +113,22 @@ func setupSuspiciousInterviewFeature(deps features.SetupDeps) error {
 	return nil
 }
 
-var welcomeMessage = utils.LocalizedString{
+var welcomeMessage = locale.Text{
 	discord.LocaleEnglishUS: "Hello %s!\n\nBefore you join our ship, we need to ask you a few questions to determine your role. You will be asked a series of questions, please answer them truthfully.\n\nAre you ready?",
 	discord.LocaleFrench:    "Bonjour %s!\n\nAvant de rejoindre notre vaisseau, nous devons te poser quelques questions pour déterminer votre rôle. Tu seras invité à répondre à une série de questions, merci de répondre honnêtement.\n\nEs-tu prêt?",
 }
 
-func (f SuspiciousInterviewConfig) ExecuteInterview(restClient rest.Rest, member discord.Member, locale discord.Locale) error {
+func (f SuspiciousInterviewConfig) ExecuteInterview(restClient rest.Rest, member discord.Member, l discord.Locale) error {
 
 	userDMChannel, err := restClient.CreateDMChannel(member.User.ID)
 	if err != nil {
 		return fmt.Errorf("failed to create DM channel for user '%s' of guild '%s': %w", member.EffectiveName(), member.GuildID.String(), err)
 	}
 
-	// Create the welcome message
-	welcomeMsgCreate := discord.NewMessageCreateBuilder().SetContent(welcomeMessage[locale]).Build()
+	welcomeMsgCreate := discord.NewMessageCreateBuilder().SetContent(welcomeMessage[l]).Build()
 
 	restClient.CreateMessage(userDMChannel.ID(), welcomeMsgCreate)
 
-	// Processing each question
 	for _, question := range f.Questions {
 
 		slog.Info(fmt.Sprintf("Asking question '%s'", question.Question))

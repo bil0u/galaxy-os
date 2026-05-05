@@ -1,7 +1,7 @@
 package features
 
-func NewFeatureSet(features ...Feature) *FeatureSet {
-	fs := FeatureSet{}
+func NewSet(features ...Feature) *Set {
+	fs := Set{}
 	for _, f := range features {
 		if err := f.IsValid(); err != nil {
 			return nil
@@ -15,16 +15,16 @@ func NewFeatureSet(features ...Feature) *FeatureSet {
 	return &fs
 }
 
-type FeatureSet map[string]Feature
+type Set map[string]Feature
 
-func (fs FeatureSet) WithKey(key string) *Feature {
+func (fs Set) WithKey(key string) *Feature {
 	if f, ok := fs[key]; ok {
 		return &f
 	}
 	return nil
 }
 
-func (fs FeatureSet) Get(matchFunc func(f Feature) bool) []*Feature {
+func (fs Set) Get(matchFunc func(f Feature) bool) []*Feature {
 	features := make([]*Feature, 0)
 	for _, f := range fs {
 		if matchFunc(f) {
@@ -34,13 +34,13 @@ func (fs FeatureSet) Get(matchFunc func(f Feature) bool) []*Feature {
 	return features
 }
 
-func (fs FeatureSet) Bot() []*Feature {
+func (fs Set) Bot() []*Feature {
 	return fs.Get(func(f Feature) bool {
 		return f.Type == BotFeature
 	})
 }
 
-func (fs FeatureSet) Guild() []*Feature {
+func (fs Set) Guild() []*Feature {
 	return fs.Get(func(f Feature) bool {
 		return f.Type == GuildFeature
 	})

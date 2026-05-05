@@ -7,7 +7,7 @@ import (
 	"github.com/bil0u/galaxy-os/internal/config"
 	"github.com/bil0u/galaxy-os/internal/features"
 	"github.com/bil0u/galaxy-os/internal/services"
-	"github.com/bil0u/galaxy-os/internal/utils"
+	"github.com/bil0u/galaxy-os/internal/locale"
 	"github.com/disgoorg/disgo/discord"
 	"github.com/disgoorg/snowflake/v2"
 )
@@ -22,7 +22,7 @@ var LogPermissionsFeature = features.New[LogPermissionsConfig](
 	setupBotPermissionsFeature,
 	features.WithType(features.BotFeature),
 	features.WithLocalizedName(discord.LocaleFrench, "Affiche les Permissions"),
-	features.WithDescription(utils.LocalizedString{
+	features.WithDescription(locale.Text{
 		discord.LocaleEnglishUS: "Log the permissions of the bot",
 		discord.LocaleFrench:    "Affiche les permissions du bot",
 	}),
@@ -66,10 +66,10 @@ func guildChannelFromAppCommandChannel(perm discord.ApplicationCommandPermission
 
 // checkBotPermissions checks the bot's permissions in a specific guild
 func checkBotPermissions(guildID snowflake.ID) (discord.Permissions, discord.Permissions, map[snowflake.ID]discord.PermissionOverwrites, error) {
-	restClient := services.GetRestClient()
+	restClient := services.RestClient()
 
 	// Fetch the bot's information in the guild
-	guildCommandsPermissions, err := restClient.GetGuildCommandsPermissions(config.Bot.ApplicationID, guildID)
+	guildCommandsPermissions, err := restClient.GetGuildCommandsPermissions(config.BotCfg.ApplicationID, guildID)
 	if err != nil {
 		return 0, 0, nil, fmt.Errorf("failed to fetch bot info for guild %s: %v", guildID.String(), err)
 	}
@@ -127,7 +127,7 @@ func checkBotPermissions(guildID snowflake.ID) (discord.Permissions, discord.Per
 
 func LogPermissions(devGuildsOnly bool) {
 	// Checking permissions for each Guild
-	for _, guildID := range config.Guilds.IDs(devGuildsOnly) {
+	for _, guildID := range config.GuildsCfg.IDs(devGuildsOnly) {
 		rolePerms, userPerms, channelOverwrites, err := checkBotPermissions(guildID)
 		if err != nil {
 			slog.Error("Error checking bot permissions:", slog.Any("err", err))

@@ -6,7 +6,7 @@
   - [x] Bugs and dead code
   - [x] Error handling
   - [x] Architecture
-  - [ ] Naming
+  - [x] Naming
   - [ ] Disgo optimization
   - [ ] Multi-bot process
 - [ ] Disgo v0.18 → v0.19 migration
@@ -16,6 +16,8 @@
 - [ ] SQL schema management tooling
 - [ ] Gateway intents optimization (per-bot minimum intents)
 - [ ] Cache flags optimization (per-bot minimum cache)
+- [ ] Config container struct — replace package-level vars with a struct returned from `Init`, fix `InitGuilds` mutation-after-init smell
+- [ ] i18n with string IDs — reference localized strings by namespaced IDs instead of inline maps, store translations in files, code provides ID + English default, other locales resolved at runtime with English fallback
 
 ## Planned features
 

@@ -44,8 +44,8 @@ var startCmd = &cobra.Command{
 	RunE:  startBot,
 }
 
-var botFeatures = map[string]*features.FeatureSet{
-	"hue": features.NewFeatureSet(
+var botFeatures = map[string]*features.Set{
+	"hue": features.NewSet(
 		// Bot related features
 		bot_features.BotInfosFeature,
 		bot_features.LogPermissionsFeature,
@@ -56,7 +56,7 @@ var botFeatures = map[string]*features.FeatureSet{
 		guild_features.DailyMessageFeature,
 		guild_features.SuspiciousInterviewFeature,
 	),
-	"kevin": features.NewFeatureSet(
+	"kevin": features.NewSet(
 		// Bot related features
 		bot_features.BotInfosFeature,
 		bot_features.LogPermissionsFeature,
@@ -81,30 +81,30 @@ func startBot(cmd *cobra.Command, _ []string) error {
 		return fmt.Errorf("initializing config: %w", err)
 	}
 
-	config.Global.Development = development == "true"
-	config.Global.Version = version
-	config.Global.Commit = commit
+	config.GlobalCfg.Development = development == "true"
+	config.GlobalCfg.Version = version
+	config.GlobalCfg.Commit = commit
 
-	if _, err := services.InitLogger(config.Log.Level, config.Log.Format, config.Log.AddSource); err != nil {
+	if _, err := services.InitLogger(config.LogCfg.Level, config.LogCfg.Format, config.LogCfg.AddSource); err != nil {
 		return fmt.Errorf("initializing logger: %w", err)
 	}
 
-	if _, err := services.InitDiscordClient(config.Bot.Token, []cache.Flags{cache.FlagsAll}, []gateway.Intents{gateway.IntentsAll}); err != nil {
+	if _, err := services.InitDiscordClient(config.BotCfg.Token, []cache.Flags{cache.FlagsAll}, []gateway.Intents{gateway.IntentsAll}); err != nil {
 		return fmt.Errorf("initializing discord client: %w", err)
 	}
 
 	ctx := context.Background()
 
-	if err := config.InitGuilds(ctx, services.GetRestClient()); err != nil {
+	if err := config.InitGuilds(ctx, services.RestClient()); err != nil {
 		return fmt.Errorf("initializing guilds config: %w", err)
 	}
 
-	slog.Debug(fmt.Sprintf("Global configuration: %+v", config.Global))
-	slog.Debug(fmt.Sprintf("Bot configuration: %++v", config.Bot))
-	slog.Debug(fmt.Sprintf("Log configuration: %+v", config.Log))
-	slog.Debug(fmt.Sprintf("Guilds configuration: %+v", config.Guilds))
+	slog.Debug(fmt.Sprintf("Global configuration: %+v", config.GlobalCfg))
+	slog.Debug(fmt.Sprintf("Bot configuration: %++v", config.BotCfg))
+	slog.Debug(fmt.Sprintf("Log configuration: %+v", config.LogCfg))
+	slog.Debug(fmt.Sprintf("Guilds configuration: %+v", config.GuildsCfg))
 
-	client := services.GetClient()
+	client := services.Client()
 
 	services.InitRouter()
 	services.InitPaginator(client)
@@ -114,16 +114,16 @@ func startBot(cmd *cobra.Command, _ []string) error {
 	}
 
 	if enableOAuth2 {
-		if err := config.Bot.ValidateOAuth(); err != nil {
+		if err := config.BotCfg.ValidateOAuth(); err != nil {
 			return fmt.Errorf("oauth2 config: %w", err)
 		}
-		services.InitOAuth(config.Bot.ApplicationID, config.Bot.ClientSecret, config.Bot.BaseURL)
+		services.InitOAuth(config.BotCfg.ApplicationID, config.BotCfg.ClientSecret, config.BotCfg.BaseURL)
 	}
 
 	deps := features.SetupDeps{
 		Client: client,
-		Router: services.GetRouter(),
-		Cron:   services.GetCron(),
+		Router: services.Router(),
+		Cron:   services.Cron(),
 	}
 
 	if err := features.Init(*featureSet, deps); err != nil {
@@ -131,7 +131,7 @@ func startBot(cmd *cobra.Command, _ []string) error {
 	}
 
 	if syncCommands {
-		if err := features.Manager.SyncCommands(client, config.Guilds.IDs(development == "true")); err != nil {
+		if err := features.SyncCommands(client, config.GuildsCfg.IDs(development == "true")); err != nil {
 			return fmt.Errorf("syncing commands: %w", err)
 		}
 	}

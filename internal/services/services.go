@@ -38,11 +38,11 @@ func Logger() *slog.Logger {
 
 // OAUTH
 
-func InitOAuth(applicationID snowflake.ID, clientSecret, baseURL string) oauth2.Client {
+func InitOAuth(applicationID snowflake.ID, clientSecret, baseURL string) *oauth2.Client {
 	return oauth.Init(applicationID, clientSecret, baseURL)
 }
 
-func OAuthClient() oauth2.Client {
+func OAuthClient() *oauth2.Client {
 	return oauth.Client()
 }
 

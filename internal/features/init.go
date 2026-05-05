@@ -28,7 +28,7 @@ func SetupFeatures(fs Set, deps SetupDeps) error {
 }
 
 // SyncCommands syncs all registered slash commands to the Discord API.
-func SyncCommands(fs Set, client bot.Client, guildsIDs []snowflake.ID) error {
+func SyncCommands(fs Set, client *bot.Client, guildsIDs []snowflake.ID) error {
 	var commandsToSync []discord.ApplicationCommandCreate
 
 	for _, f := range fs {

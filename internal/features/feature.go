@@ -30,7 +30,7 @@ const (
 
 // BotServices holds per-bot Discord resources.
 type BotServices struct {
-	Client bot.Client
+	Client *bot.Client
 	Router *handler.Mux
 	Logger *slog.Logger
 }

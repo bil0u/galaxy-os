@@ -99,7 +99,7 @@ var dailyMessageTemplate = locale.Text{
 	discord.LocaleFrench:    "Bonjour %s! Ceci est votre message quotidien.",
 }
 
-func dailyMessageJob(client bot.Client, registry *features.FeatureRegistry, guildID snowflake.ID) func() {
+func dailyMessageJob(client *bot.Client, registry *features.FeatureRegistry, guildID snowflake.ID) func() {
 	return func() {
 		slog.Info("Running daily message job", slog.Any("guildID", guildID))
 
@@ -109,7 +109,7 @@ func dailyMessageJob(client bot.Client, registry *features.FeatureRegistry, guil
 			return
 		}
 
-		restClient := client.Rest()
+		restClient := client.Rest
 
 		guild, err := restClient.GetGuild(guildID, false)
 		if err != nil {
@@ -117,9 +117,8 @@ func dailyMessageJob(client bot.Client, registry *features.FeatureRegistry, guil
 			return
 		}
 
-		_, err = restClient.CreateMessage(cfg.Channel, discord.NewMessageCreateBuilder().
-			SetContentf(dailyMessageTemplate.Using(discord.Locale(guild.PreferredLocale)), guild.Name).
-			Build(),
+		_, err = restClient.CreateMessage(cfg.Channel, discord.NewMessageCreate().
+			WithContentf(dailyMessageTemplate.Using(discord.Locale(guild.PreferredLocale)), guild.Name),
 		)
 		if err != nil {
 			slog.Error("failed to send message: %w", slog.Any("err", err))

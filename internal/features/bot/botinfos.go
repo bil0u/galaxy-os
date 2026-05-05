@@ -29,7 +29,7 @@ func (f BotInfosConfig) Validate() error {
 func setupBotInfosFeature(deps features.SetupDeps) error {
 	global := deps.Configs.Global
 
-	deps.Bot.Router.Command("/botinfos", func(e *handler.CommandEvent) error {
+	deps.Bot.Router.SlashCommand("/botinfos", func(_ discord.SlashCommandInteractionData, e *handler.CommandEvent) error {
 		return e.CreateMessage(discord.MessageCreate{
 			Content: fmt.Sprintf("Version: %s\nCommit: %s", global.Version, global.Commit),
 		})

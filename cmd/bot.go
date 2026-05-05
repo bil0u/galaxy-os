@@ -20,7 +20,6 @@ import (
 	"github.com/disgoorg/disgo/events"
 	"github.com/disgoorg/disgo/gateway"
 	"github.com/disgoorg/disgo/handler"
-	"github.com/disgoorg/paginator"
 	"github.com/spf13/cobra"
 )
 
@@ -111,7 +110,6 @@ func startBot(cmd *cobra.Command, _ []string) error {
 		disbot.WithCacheConfigOpts(cache.WithCaches(def.cacheFlags)),
 		disbot.WithGatewayConfigOpts(
 			gateway.WithIntents(def.intents),
-			gateway.WithCompress(true),
 		),
 	)
 	if err != nil {
@@ -120,7 +118,7 @@ func startBot(cmd *cobra.Command, _ []string) error {
 
 	ctx := context.Background()
 
-	guilds, err := config.InitGuilds(ctx, client.Rest(), bot)
+	guilds, err := config.InitGuilds(ctx, client.Rest, bot)
 	if err != nil {
 		return fmt.Errorf("initializing guilds config: %w", err)
 	}
@@ -131,8 +129,7 @@ func startBot(cmd *cobra.Command, _ []string) error {
 	slog.Debug(fmt.Sprintf("Guilds configuration: %+v", guilds))
 
 	router := handler.New()
-	pgn := paginator.New()
-	client.AddEventListeners(router, pgn)
+	client.AddEventListeners(router)
 
 	client.AddEventListeners(disbot.NewListenerFunc(func(_ *events.Resumed) {
 		botLogger.Info("gateway reconnected")

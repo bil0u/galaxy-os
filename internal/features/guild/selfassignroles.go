@@ -52,7 +52,7 @@ func setupSelfAssignRolesFeature(deps features.SetupDeps) error {
 	global := deps.Configs.Global
 
 	client.AddEventListeners(disbot.NewListenerFunc(func(_ *events.Ready) {
-		restClient := client.Rest()
+		restClient := client.Rest
 		for _, guildID := range guilds.IDs(global.Development) {
 			cfg, err := features.GetConfigFrom[SelfAssignRolesConfig](registry, guildID)
 			if err != nil {

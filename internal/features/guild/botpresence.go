@@ -56,7 +56,7 @@ func setupBotPresenceFeature(deps features.SetupDeps) error {
 	return nil
 }
 
-func setPresenceWhenReady(client bot.Client, registry *features.FeatureRegistry, guilds *config.GuildMap) {
+func setPresenceWhenReady(client *bot.Client, registry *features.FeatureRegistry, guilds *config.GuildMap) {
 	for guildID := range guilds.All() {
 		cfg, err := features.GetConfigFrom[BotPresenceConfig](registry, guildID)
 		if err != nil || !cfg.Enabled {

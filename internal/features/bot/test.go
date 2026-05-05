@@ -5,7 +5,6 @@ import (
 	"github.com/bil0u/galaxy-os/internal/locale"
 	"github.com/disgoorg/disgo/discord"
 	"github.com/disgoorg/disgo/handler"
-	"github.com/disgoorg/json"
 )
 
 type TestConfig struct {
@@ -28,19 +27,17 @@ var TestFeature = features.New[TestConfig](
 )
 
 func setupTestFeature(deps features.SetupDeps) error {
-	deps.Bot.Router.Command("/test", TestHandler)
+	deps.Bot.Router.SlashCommand("/test", TestHandler)
 	deps.Bot.Router.Autocomplete("/test", TestAutocompleteHandler)
-	deps.Bot.Router.Component("/test-button", TestComponent)
+	deps.Bot.Router.ButtonComponent("/test-button", TestComponent)
 	return nil
 }
 
-func TestComponent(e *handler.ComponentEvent) error {
-	return e.UpdateMessage(discord.MessageUpdate{
-		Content: json.Ptr(locale.Text{
-			discord.LocaleEnglishUS: "The text has been updated",
-			discord.LocaleFrench:    "Le texte a été mis à jour",
-		}.Using(e.Locale())),
-	})
+func TestComponent(_ discord.ButtonInteractionData, e *handler.ComponentEvent) error {
+	return e.UpdateMessage(discord.NewMessageUpdate().WithContent(locale.Text{
+		discord.LocaleEnglishUS: "The text has been updated",
+		discord.LocaleFrench:    "Le texte a été mis à jour",
+	}.Using(e.Locale())))
 }
 
 var testCommand = discord.SlashCommandCreate{
@@ -72,15 +69,13 @@ var testCommand = discord.SlashCommandCreate{
 	},
 }
 
-func TestHandler(e *handler.CommandEvent) error {
-	data := e.SlashCommandInteractionData()
-	return e.CreateMessage(discord.NewMessageCreateBuilder().
-		SetContentf(locale.Text{
+func TestHandler(data discord.SlashCommandInteractionData, e *handler.CommandEvent) error {
+	return e.CreateMessage(discord.NewMessageCreate().
+		WithContentf(locale.Text{
 			discord.LocaleEnglishUS: "Test command. Choice: %s",
 			discord.LocaleFrench:    "Commande de test. Choix: %s",
 		}.Using(e.Locale()), data.String("choice")).
-		AddActionRow(discord.NewPrimaryButton("test", "/test-button")).
-		Build(),
+		AddActionRow(discord.NewPrimaryButton("test", "/test-button")),
 	)
 }
 

@@ -30,8 +30,8 @@ func (r *FeatureRegistry) guildFeaturesRaw(guildID snowflake.ID) *viper.Viper {
 	return config.FeaturesDefs
 }
 
-// ConfigRaw returns the raw feature configuration for a specific guild and feature key.
-func (r *FeatureRegistry) ConfigRaw(guildID snowflake.ID, featureKey string) (*viper.Viper, error) {
+// configRaw returns the raw feature configuration for a specific guild and feature key.
+func (r *FeatureRegistry) configRaw(guildID snowflake.ID, featureKey string) (*viper.Viper, error) {
 	slog.Debug(fmt.Sprintf("Getting feature configuration for guild '%d' and feature '%s'", guildID, featureKey))
 	guildFeatures := r.guildFeaturesRaw(guildID)
 	if guildFeatures == nil {
@@ -50,7 +50,7 @@ func (r *FeatureRegistry) FeatureConfig(guildID snowflake.ID, featureKey string)
 	if feature == nil {
 		return nil, fmt.Errorf("feature not found in the feature set")
 	}
-	cfg, err := r.ConfigRaw(guildID, featureKey)
+	cfg, err := r.configRaw(guildID, featureKey)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get feature configuration: %w", err)
 	}

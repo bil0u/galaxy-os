@@ -52,8 +52,8 @@ All initialization happens in `cmd/bot.go`'s `startBot()`. No package-level sing
 1. `config.Init(bot)` — reads `config.toml`, returns `(*Global, *Log, *Bot, error)`
 2. `services.InitLogger(...)` — structured slog setup
 3. `disgo.New(token, ...)` — creates per-bot Discord client directly (no singleton)
-4. `config.InitGuilds(ctx, client.Rest(), botName)` — queries Discord API for guilds, reads per-guild config files
-5. `handler.New()` / `paginator.New()` / `services.InitCron()` / `services.InitOAuth(...)` — per-bot router/paginator, shared cron/oauth
+4. `config.InitGuilds(ctx, client.Rest, botName)` — queries Discord API for guilds, reads per-guild config files
+5. `handler.New()` / `services.InitCron()` / `services.InitOAuth(...)` — per-bot router, shared cron/oauth
 6. `features.NewRegistry(...)` + `features.SetupFeatures(fs, deps)` — builds config registry, calls each feature's `Setup(deps)`
 
 ### Configuration system
@@ -82,7 +82,7 @@ Feature type must be declared explicitly with `features.WithType(features.BotFea
 
 `SetupDeps` is grouped into three semantic sections:
 
-- `deps.Bot` — `BotServices{Client bot.Client, Router *handler.Mux, Logger *slog.Logger}`
+- `deps.Bot` — `BotServices{Client *bot.Client, Router *handler.Mux, Logger *slog.Logger}`
 - `deps.Shared` — `SharedServices{Cron *cron.Cron}` (nil if `--cron` not set)
 - `deps.Configs` — `Configs{Bot *config.Bot, Guilds *config.GuildMap, Global *config.Global, Features *FeatureRegistry}`
 
@@ -97,9 +97,9 @@ Features capture what they need from deps in closures — no globals, no facade 
 
 ### Services layer
 
-`internal/services/services.go` is a thin facade over shared service sub-packages (`cron/`, `email/`, `oauth/`, `sql/`, `logger/`). Discord resources (client, router, paginator) are created directly in `cmd/bot.go` — no singleton wrapper.
+`internal/services/services.go` is a thin facade over shared service sub-packages (`cron/`, `email/`, `oauth/`, `sql/`, `logger/`). Discord resources (client, router) are created directly in `cmd/bot.go` — no singleton wrapper.
 
-Features receive all dependencies via `SetupDeps` and derive REST from `deps.Bot.Client.Rest()`. No feature should import the services package.
+Features receive all dependencies via `SetupDeps` and derive REST from `deps.Bot.Client.Rest`. No feature should import the services package.
 
 ### Localization
 

@@ -78,7 +78,7 @@ func setupSuspiciousInterviewFeature(deps features.SetupDeps) error {
 			return
 		}
 
-		restClient := client.Rest()
+		restClient := client.Rest
 
 		preferedLocale := discord.LocaleEnglishUS
 
@@ -127,7 +127,7 @@ func (f SuspiciousInterviewConfig) ExecuteInterview(restClient rest.Rest, member
 		return fmt.Errorf("failed to create DM channel for user '%s' of guild '%s': %w", member.EffectiveName(), member.GuildID.String(), err)
 	}
 
-	welcomeMsgCreate := discord.NewMessageCreateBuilder().SetContent(welcomeMessage[l]).Build()
+	welcomeMsgCreate := discord.NewMessageCreate().WithContent(welcomeMessage[l])
 
 	restClient.CreateMessage(userDMChannel.ID(), welcomeMsgCreate)
 
@@ -136,7 +136,7 @@ func (f SuspiciousInterviewConfig) ExecuteInterview(restClient rest.Rest, member
 		slog.Info(fmt.Sprintf("Asking question '%s'", question.Question))
 
 		// Ask the question
-		// err := restClient.CreateMessage(userDMChannel.ID, discord.NewMessageCreateBuilder().SetContent(question.Question).Build())
+		// err := restClient.CreateMessage(userDMChannel.ID, discord.NewMessageCreate().WithContent(question.Question))
 		// if err != nil {
 		// 	return fmt.Errorf("failed to send question: %w", err)
 		// }

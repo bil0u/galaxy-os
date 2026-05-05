@@ -9,8 +9,10 @@
 - Dependency injection: `features.SetupDeps` groups `BotServices`, `SharedServices`, `Configs`. Features capture deps in closures — no globals or facade calls at runtime
 - Config access in features: `features.GetConfigFrom[T](registry, guildID)` — registry comes from `deps.Configs.Features`
 - Services facade: `services.InitLogger()`, `services.InitCron()`, `services.Cron()`, etc. — only shared services. Discord resources created directly in `cmd/bot.go`
-- Discord client: stored as `bot.Client` (interface), never `*bot.Client` (pointer-to-interface). Same for `oauth2.Client`
-- REST access: derive from `client.Rest()` — no separate singleton or field
+- Discord client: stored as `*bot.Client` (struct pointer). Same for `*oauth2.Client`
+- REST access: derive from `client.Rest` (field, not method) — no separate singleton
+- Handler registration: prefer typed handlers (`.SlashCommand()`, `.ButtonComponent()`) over generic (`.Command()`, `.Component()`) for compile-time type safety
+- Message builders: use `discord.NewMessageCreate().With*()` / `discord.NewMessageUpdate().With*()` — no `.Build()` call
 - Feature type: always declared explicitly with `features.WithType(...)`, never auto-detected from package path
 - Discord IDs: always `snowflake.ID`, never raw `string` or `uint64`
 - Functional options pattern for constructors with optional config (see `featureOption`)

@@ -49,12 +49,12 @@ The `bot` name is injected at compile time via `-ldflags` into `cmd.bot`. It det
 
 Init functions are called once in a deterministic sequence from `cmd/bot.go`'s `startBot()`. Out-of-order calls cause nil-pointer panics.
 
-1. `config.Init(bot)` — reads `config.toml`, populates `config.Global`, `config.Log`, `config.Bot`
+1. `config.Init(bot)` — reads `config.toml`, populates `config.GlobalCfg`, `config.LogCfg`, `config.BotCfg`
 2. `services.InitLogger(...)` — structured slog setup
 3. `services.InitDiscordClient(...)` — single client for REST and gateway
 4. `config.InitGuilds(ctx, restClient)` — queries Discord API for guilds, reads per-guild config files
 5. `services.InitRouter()` / `InitPaginator(...)` / `InitCron()` / `InitOAuth(...)` — remaining services
-6. `features.Init(featureSet, deps)` — creates FeatureManager, calls each feature's `Setup(deps)`
+6. `features.Init(featureSet, deps)` — creates Manager, calls each feature's `Setup(deps)`
 
 ### Configuration system
 
@@ -74,7 +74,7 @@ features.GetBotConfig[MyConfig]()       // bot feature (guildID = 0)
 
 Each feature has:
 
-- A config struct implementing `features.FeatureConfig` (must have `Validate() error`)
+- A config struct implementing `features.Config` (must have `Validate() error`)
 - A `Setup(deps features.SetupDeps) error` function that receives its dependencies explicitly
 - A package-level var created with `features.New[ConfigType](setupFn, ...opts)`
 
@@ -85,12 +85,16 @@ Feature type must be declared explicitly with `features.WithType(features.BotFea
 **Adding a new feature:**
 
 1. Create file in `internal/features/bot/` or `internal/features/guild/`
-2. Define config struct implementing `FeatureConfig`
+2. Define config struct implementing `features.Config`
 3. Export `var XFeature = features.New[XConfig](setupFunc, features.WithType(...), ...opts)`
 4. Register in `cmd/bot.go`'s `botFeatures` map for the relevant bot(s)
 
 ### Services layer
 
-`internal/services/services.go` is the public facade over sub-packages (`discord/`, `cron/`, `email/`, `oauth/`, `sql/`, `logger/`). Sub-package vars are unexported — the facade is the only access path. Always use `services.Get*()` / `services.Init*()` — never import sub-packages directly from features.
+`internal/services/services.go` is the public facade over sub-packages (`discord/`, `cron/`, `email/`, `oauth/`, `sql/`, `logger/`). Sub-package vars are unexported — the facade is the only access path. Always use `services.*()` / `services.Init*()` — never import sub-packages directly from features.
 
-One Discord client exists (`bot.Client`, not pointer-to-interface). Feature `Setup()` functions receive dependencies via `SetupDeps` instead of calling the facade; runtime event handlers may still use `services.GetRestClient()` for REST calls.
+One Discord client exists (`bot.Client`, not pointer-to-interface). Feature `Setup()` functions receive dependencies via `SetupDeps` instead of calling the facade; runtime event handlers may still use `services.RestClient()` for REST calls.
+
+### Localization
+
+`internal/locale` provides `locale.Text` (`map[discord.Locale]string`) for Discord-facing localized strings. Always provide at least `discord.LocaleEnglishUS`.

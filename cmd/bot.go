@@ -95,7 +95,7 @@ func startBot(cmd *cobra.Command, _ []string) error {
 
 	ctx := context.Background()
 
-	if err := config.InitGuilds(ctx, services.GetRestClient()); err != nil {
+	if err := config.InitGuilds(ctx, services.RestClient()); err != nil {
 		return fmt.Errorf("initializing guilds config: %w", err)
 	}
 
@@ -104,7 +104,7 @@ func startBot(cmd *cobra.Command, _ []string) error {
 	slog.Debug(fmt.Sprintf("Log configuration: %+v", config.LogCfg))
 	slog.Debug(fmt.Sprintf("Guilds configuration: %+v", config.GuildsCfg))
 
-	client := services.GetClient()
+	client := services.Client()
 
 	services.InitRouter()
 	services.InitPaginator(client)
@@ -122,8 +122,8 @@ func startBot(cmd *cobra.Command, _ []string) error {
 
 	deps := features.SetupDeps{
 		Client: client,
-		Router: services.GetRouter(),
-		Cron:   services.GetCron(),
+		Router: services.Router(),
+		Cron:   services.Cron(),
 	}
 
 	if err := features.Init(*featureSet, deps); err != nil {

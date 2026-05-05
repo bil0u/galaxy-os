@@ -76,7 +76,7 @@ func setupSuspiciousInterviewFeature(deps features.SetupDeps) error {
 			return
 		}
 
-		restClient := services.GetRestClient()
+		restClient := services.RestClient()
 
 		preferedLocale := discord.LocaleEnglishUS
 

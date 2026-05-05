@@ -85,7 +85,7 @@ func selfAssignRoles(_ *events.Ready) {
 
 // getAssignedRoles returns the roles assigned to the bot in the provided guild
 func getAssignedRoles(guildID snowflake.ID) ([]snowflake.ID, error) {
-	restClient := services.GetRestClient()
+	restClient := services.RestClient()
 
 	botUser, err := restClient.GetMember(guildID, config.BotCfg.ApplicationID)
 	if err != nil {
@@ -98,7 +98,7 @@ func getAssignedRoles(guildID snowflake.ID) ([]snowflake.ID, error) {
 // RemoveBotRoles removes the provided roles from the bot in the provided guild
 func removeBotRoles(guildID snowflake.ID, roles []snowflake.ID) error {
 
-	restClient := services.GetRestClient()
+	restClient := services.RestClient()
 
 	// Getting user using the bot ID
 	botUser, err := restClient.GetCurrentUser("")
@@ -128,7 +128,7 @@ func removeBotRoles(guildID snowflake.ID, roles []snowflake.ID) error {
 // assignBotRoles assigns the provided roles to the bot in the provided guild
 func assignBotRoles(guildID snowflake.ID, roles, existingRoles []snowflake.ID) error {
 
-	restClient := services.GetRestClient()
+	restClient := services.RestClient()
 	// Getting user using the bot ID
 	botUser, err := restClient.GetCurrentUser("")
 	if err != nil {

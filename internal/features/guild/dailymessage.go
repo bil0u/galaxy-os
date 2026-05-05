@@ -112,7 +112,7 @@ func DailyMessageJob(guildID snowflake.ID) func() {
 			return
 		}
 
-		restClient := services.GetRestClient()
+		restClient := services.RestClient()
 
 		// Get the guild
 		guild, err := restClient.GetGuild(guildID, false)

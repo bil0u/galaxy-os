@@ -66,7 +66,7 @@ func guildChannelFromAppCommandChannel(perm discord.ApplicationCommandPermission
 
 // checkBotPermissions checks the bot's permissions in a specific guild
 func checkBotPermissions(guildID snowflake.ID) (discord.Permissions, discord.Permissions, map[snowflake.ID]discord.PermissionOverwrites, error) {
-	restClient := services.GetRestClient()
+	restClient := services.RestClient()
 
 	// Fetch the bot's information in the guild
 	guildCommandsPermissions, err := restClient.GetGuildCommandsPermissions(config.BotCfg.ApplicationID, guildID)

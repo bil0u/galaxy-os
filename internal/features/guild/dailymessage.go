@@ -59,7 +59,7 @@ func setupDailyMessageFeature(deps features.SetupDeps) error {
 	}
 
 	var errs []error
-	for guildID, guildConfig := range config.Guilds.All() {
+	for guildID, guildConfig := range config.GuildsCfg.All() {
 
 		config, err := features.GetConfig[DailyMessageConfig](guildID)
 		if err != nil {

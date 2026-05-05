@@ -69,7 +69,7 @@ func checkBotPermissions(guildID snowflake.ID) (discord.Permissions, discord.Per
 	restClient := services.GetRestClient()
 
 	// Fetch the bot's information in the guild
-	guildCommandsPermissions, err := restClient.GetGuildCommandsPermissions(config.Bot.ApplicationID, guildID)
+	guildCommandsPermissions, err := restClient.GetGuildCommandsPermissions(config.BotCfg.ApplicationID, guildID)
 	if err != nil {
 		return 0, 0, nil, fmt.Errorf("failed to fetch bot info for guild %s: %v", guildID.String(), err)
 	}
@@ -127,7 +127,7 @@ func checkBotPermissions(guildID snowflake.ID) (discord.Permissions, discord.Per
 
 func LogPermissions(devGuildsOnly bool) {
 	// Checking permissions for each Guild
-	for _, guildID := range config.Guilds.IDs(devGuildsOnly) {
+	for _, guildID := range config.GuildsCfg.IDs(devGuildsOnly) {
 		rolePerms, userPerms, channelOverwrites, err := checkBotPermissions(guildID)
 		if err != nil {
 			slog.Error("Error checking bot permissions:", slog.Any("err", err))

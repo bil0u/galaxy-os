@@ -10,10 +10,10 @@ import (
 )
 
 var (
-	Global *GlobalConfig
-	Log    *LogConfig
-	Bot    *BotConfig
-	Guilds *GuildsConfigs
+	GlobalCfg *Global
+	LogCfg    *Log
+	BotCfg    *Bot
+	GuildsCfg *GuildMap
 )
 
 func readLocalConfig(filename, path string) (*viper.Viper, error) {
@@ -36,22 +36,22 @@ func Init(botName string) error {
 		return err
 	}
 
-	Global, err = NewGlobalConfig(cfg)
+	GlobalCfg, err = NewGlobal(cfg)
 	if err != nil {
 		return err
 	}
 
-	Log, err = NewLogConfig(cfg)
+	LogCfg, err = NewLog(cfg)
 	if err != nil {
 		return err
 	}
 
-	Bot, err = NewBotConfig(cfg, botName)
+	BotCfg, err = NewBot(cfg, botName)
 	if err != nil {
 		return err
 	}
 
-	Guilds = &GuildsConfigs{}
+	GuildsCfg = &GuildMap{}
 	return nil
 }
 
@@ -72,9 +72,9 @@ func InitGuilds(_ context.Context, client rest.Rest) error {
 			cfg = nil
 			slog.Error(err.Error())
 		}
-		config, _ := NewGuildConfig(cfg, Bot.Name)
+		config, _ := NewGuild(cfg, BotCfg.Name)
 
-		err = Guilds.Set(guild.ID, config)
+		err = GuildsCfg.Set(guild.ID, config)
 		if err != nil {
 			slog.Error(err.Error())
 		}

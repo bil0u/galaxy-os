@@ -11,8 +11,8 @@ import (
 	"golang.org/x/text/language"
 )
 
-// `BotConfig` holds the configuration for the bot
-type BotConfig struct {
+// Bot holds the configuration for the bot.
+type Bot struct {
 	Name          string       `mapstructure:"-"`
 	Token         string       `mapstructure:"token"`
 	ApplicationID snowflake.ID `mapstructure:"application_id"`
@@ -22,7 +22,7 @@ type BotConfig struct {
 }
 
 // `validate` validates the required bot configuration
-func (config BotConfig) validate() error {
+func (config Bot) validate() error {
 	var errs []error
 
 	if config.Token == "" {
@@ -38,7 +38,7 @@ func (config BotConfig) validate() error {
 
 // ValidateOAuth checks that OAuth2-specific fields are present.
 // Should only be called when --oauth2 is enabled.
-func (config BotConfig) ValidateOAuth() error {
+func (config Bot) ValidateOAuth() error {
 	var errs []error
 
 	if config.ClientSecret == "" {
@@ -53,15 +53,15 @@ func (config BotConfig) ValidateOAuth() error {
 }
 
 // `DisplayName` returns the bot name in a human readable format
-func (config BotConfig) DisplayName() string {
+func (config Bot) DisplayName() string {
 	titleCaser := cases.Title(language.English)
 	return titleCaser.String(strings.ReplaceAll(config.Name, "_", " "))
 }
 
-// `NewBotConfig` creates a new BotConfig object from a viper configuration
-func NewBotConfig(cfg *viper.Viper, botName string) (*BotConfig, error) {
+// NewBot creates a new Bot from a viper configuration.
+func NewBot(cfg *viper.Viper, botName string) (*Bot, error) {
 
-	newCfg := BotConfig{
+	newCfg := Bot{
 		Name: botName,
 	}
 

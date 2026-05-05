@@ -53,7 +53,7 @@ func setupBotPresenceFeature(deps features.SetupDeps) error {
 }
 
 func setPresenceWhenReady(client bot.Client) {
-	for guildID := range config.Guilds.All() {
+	for guildID := range config.GuildsCfg.All() {
 		cfg, err := features.GetConfig[BotPresenceConfig](guildID)
 		if err != nil || !cfg.Enabled {
 			continue

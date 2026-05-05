@@ -16,6 +16,7 @@
 - [ ] SQL schema management tooling
 - [ ] Gateway intents optimization (per-bot minimum intents)
 - [ ] Cache flags optimization (per-bot minimum cache)
+- [ ] Config container struct — replace package-level vars with a struct returned from `Init`, fix `InitGuilds` mutation-after-init smell
 
 ## Planned features
 

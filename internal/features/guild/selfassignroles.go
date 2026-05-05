@@ -52,7 +52,7 @@ func setupSelfAssignRolesFeature(deps features.SetupDeps) error {
 // selfAssignRoles returns an event listener that assigns roles to the bot for each guild
 func selfAssignRoles(_ *events.Ready) {
 	// Looping through each guild to assign roles
-	for _, guildID := range config.Guilds.IDs(config.Global.Development) {
+	for _, guildID := range config.GuildsCfg.IDs(config.GlobalCfg.Development) {
 
 		// Getting feature config for guild
 		cfg, _ := features.GetConfig[SelfAssignRolesConfig](guildID)
@@ -87,7 +87,7 @@ func selfAssignRoles(_ *events.Ready) {
 func getAssignedRoles(guildID snowflake.ID) ([]snowflake.ID, error) {
 	restClient := services.GetRestClient()
 
-	botUser, err := restClient.GetMember(guildID, config.Bot.ApplicationID)
+	botUser, err := restClient.GetMember(guildID, config.BotCfg.ApplicationID)
 	if err != nil {
 		return nil, err
 	}

@@ -6,21 +6,21 @@ import (
 	"github.com/spf13/viper"
 )
 
-// `GlobalConfig` holds the configuration for the global settings
-type GlobalConfig struct {
+// Global holds the configuration for the global settings.
+type Global struct {
 	Development bool   `mapstructure:"development"`
 	Version     string `mapstructure:"-"`
 	Commit      string `mapstructure:"-"`
 }
 
 // `validate` validates a global configuration
-func (config GlobalConfig) validate() error {
+func (config Global) validate() error {
 	return nil
 }
 
-// `NewGlobalConfig` creates a new global configuration object from a viper object
-func NewGlobalConfig(raw *viper.Viper) (*GlobalConfig, error) {
-	newCfg := &GlobalConfig{}
+// NewGlobal creates a new Global from a viper object.
+func NewGlobal(raw *viper.Viper) (*Global, error) {
+	newCfg := &Global{}
 
 	err := raw.Unmarshal(newCfg)
 	if err != nil {

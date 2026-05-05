@@ -17,8 +17,8 @@ func Init(fs FeatureSet, deps SetupDeps) error {
 
 	Manager, err = NewManager(
 		WithFeatureSet(fs),
-		WithBotConfig(config.Bot),
-		WithGuildsConfigs(config.Guilds),
+		WithBotConfig(config.BotCfg),
+		WithGuildsConfigs(config.GuildsCfg),
 	)
 	if err != nil {
 		return fmt.Errorf("creating feature manager: %w", err)

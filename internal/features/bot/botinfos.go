@@ -47,6 +47,6 @@ var botInfosCommand = discord.SlashCommandCreate{
 
 func botInfosHandler(e *handler.CommandEvent) error {
 	return e.CreateMessage(discord.MessageCreate{
-		Content: fmt.Sprintf("Version: %s\nCommit: %s", config.Global.Version, config.Global.Commit),
+		Content: fmt.Sprintf("Version: %s\nCommit: %s", config.GlobalCfg.Version, config.GlobalCfg.Commit),
 	})
 }

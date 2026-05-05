@@ -20,8 +20,8 @@ import (
 // It should be created with a feature set, a bot configuration and a guilds configuration using the `NewManager` function
 type FeatureManager struct {
 	features      FeatureSet
-	botConfig     *config.BotConfig
-	guildsConfigs *config.GuildsConfigs
+	botConfig     *config.Bot
+	guildsConfigs *config.GuildMap
 }
 
 // `getFeaturesDefs` returns the corresponding features definitions for a specific guild.
@@ -153,14 +153,14 @@ func WithFeatureSet(fs FeatureSet) FeatureManagerOpts {
 }
 
 // `WithBotConfig` sets the bot configuration for the FeatureManager
-func WithBotConfig(cfg *config.BotConfig) FeatureManagerOpts {
+func WithBotConfig(cfg *config.Bot) FeatureManagerOpts {
 	return func(fm *FeatureManager) {
 		fm.botConfig = cfg
 	}
 }
 
 // `WithGuildsConfigs` sets the guilds configurations for the FeatureManager
-func WithGuildsConfigs(cfgs *config.GuildsConfigs) FeatureManagerOpts {
+func WithGuildsConfigs(cfgs *config.GuildMap) FeatureManagerOpts {
 	return func(fm *FeatureManager) {
 		fm.guildsConfigs = cfgs
 	}

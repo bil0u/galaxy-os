@@ -6,9 +6,9 @@ import (
 
 	"github.com/bil0u/galaxy-os/internal/config"
 	"github.com/bil0u/galaxy-os/internal/features"
-	"github.com/bil0u/galaxy-os/internal/services"
 	"github.com/bil0u/galaxy-os/internal/locale"
 	"github.com/disgoorg/disgo/discord"
+	"github.com/disgoorg/disgo/rest"
 	"github.com/disgoorg/snowflake/v2"
 )
 
@@ -64,17 +64,12 @@ func guildChannelFromAppCommandChannel(perm discord.ApplicationCommandPermission
 	return nil, fmt.Errorf("guild channel %s not found", perm.ChannelID.String())
 }
 
-// checkBotPermissions checks the bot's permissions in a specific guild
-func checkBotPermissions(guildID snowflake.ID) (discord.Permissions, discord.Permissions, map[snowflake.ID]discord.PermissionOverwrites, error) {
-	restClient := services.RestClient()
-
-	// Fetch the bot's information in the guild
-	guildCommandsPermissions, err := restClient.GetGuildCommandsPermissions(config.BotCfg.ApplicationID, guildID)
+func checkBotPermissions(restClient rest.Rest, applicationID snowflake.ID, guildID snowflake.ID) (discord.Permissions, discord.Permissions, map[snowflake.ID]discord.PermissionOverwrites, error) {
+	guildCommandsPermissions, err := restClient.GetGuildCommandsPermissions(applicationID, guildID)
 	if err != nil {
 		return 0, 0, nil, fmt.Errorf("failed to fetch bot info for guild %s: %v", guildID.String(), err)
 	}
 
-	// Fetch the guild roles
 	guildRoles, err := restClient.GetRoles(guildID)
 	if err != nil {
 		return 0, 0, nil, fmt.Errorf("failed to fetch guildRoles for guild %s: %v", guildID.String(), err)
@@ -83,7 +78,6 @@ func checkBotPermissions(guildID snowflake.ID) (discord.Permissions, discord.Per
 	var rolePermissions, userPermissions discord.Permissions
 	channelPermissions := map[snowflake.ID]discord.PermissionOverwrites{}
 
-	// Convert the permissions to a single value
 	for _, permGroup := range guildCommandsPermissions {
 		for _, perm := range permGroup.Permissions {
 			switch perm.Type() {
@@ -96,7 +90,6 @@ func checkBotPermissions(guildID snowflake.ID) (discord.Permissions, discord.Per
 				rolePermissions |= role.Permissions
 			case discord.ApplicationCommandPermissionTypeUser:
 				acpUser := perm.(discord.ApplicationCommandPermissionUser)
-				// Fetch the user permissions
 				guildMember, err := restClient.GetMember(guildID, acpUser.UserID)
 				if err != nil {
 					return 0, 0, nil, fmt.Errorf("failed to fetch guild member for guild %s: %v", guildID.String(), err)
@@ -104,7 +97,6 @@ func checkBotPermissions(guildID snowflake.ID) (discord.Permissions, discord.Per
 				userPermissions = memberPermissionsFromRoles(*guildMember, guildRoles)
 
 			case discord.ApplicationCommandPermissionTypeChannel:
-				// Fetch the channel permissions
 				acpChannel := perm.(discord.ApplicationCommandPermissionChannel)
 
 				guildChannels, err := restClient.GetGuildChannels(guildID)
@@ -112,7 +104,6 @@ func checkBotPermissions(guildID snowflake.ID) (discord.Permissions, discord.Per
 					return 0, 0, nil, fmt.Errorf("failed to fetch guild channels for guild %s: %v", guildID.String(), err)
 				}
 				channel, err := guildChannelFromAppCommandChannel(acpChannel, guildChannels)
-				// No errors means the channel was found
 				if err == nil {
 					channelPermissions[acpChannel.ChannelID] = channel.PermissionOverwrites()
 				}
@@ -125,10 +116,9 @@ func checkBotPermissions(guildID snowflake.ID) (discord.Permissions, discord.Per
 	return rolePermissions, userPermissions, channelPermissions, nil
 }
 
-func LogPermissions(devGuildsOnly bool) {
-	// Checking permissions for each Guild
-	for _, guildID := range config.GuildsCfg.IDs(devGuildsOnly) {
-		rolePerms, userPerms, channelOverwrites, err := checkBotPermissions(guildID)
+func LogPermissions(restClient rest.Rest, botCfg *config.Bot, guilds *config.GuildMap, devGuildsOnly bool) {
+	for _, guildID := range guilds.IDs(devGuildsOnly) {
+		rolePerms, userPerms, channelOverwrites, err := checkBotPermissions(restClient, botCfg.ApplicationID, guildID)
 		if err != nil {
 			slog.Error("Error checking bot permissions:", slog.Any("err", err))
 		}

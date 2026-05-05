@@ -130,18 +130,31 @@ func startBot(cmd *cobra.Command, _ []string) error {
 		services.InitOAuth(config.BotCfg.ApplicationID, config.BotCfg.ClientSecret, config.BotCfg.BaseURL)
 	}
 
+	registry := features.NewRegistry(*def.features, config.BotCfg, config.GuildsCfg)
+
 	deps := features.SetupDeps{
-		Client: client,
-		Router: services.Router(),
-		Cron:   services.Cron(),
+		Bot: features.BotServices{
+			Client: client,
+			Router: services.Router(),
+			Logger: slog.Default(),
+		},
+		Shared: features.SharedServices{
+			Cron: services.Cron(),
+		},
+		Configs: features.Configs{
+			Bot:      config.BotCfg,
+			Guilds:   config.GuildsCfg,
+			Global:   config.GlobalCfg,
+			Features: registry,
+		},
 	}
 
-	if err := features.Init(*def.features, deps); err != nil {
-		return fmt.Errorf("initializing features: %w", err)
+	if err := features.SetupFeatures(*def.features, deps); err != nil {
+		return fmt.Errorf("setting up features: %w", err)
 	}
 
 	if syncCommands {
-		if err := features.SyncCommands(client, config.GuildsCfg.IDs(development == "true")); err != nil {
+		if err := features.SyncCommands(*def.features, client, config.GuildsCfg.IDs(development == "true")); err != nil {
 			return fmt.Errorf("syncing commands: %w", err)
 		}
 	}

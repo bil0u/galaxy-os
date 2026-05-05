@@ -6,7 +6,6 @@ import (
 
 	"github.com/bil0u/galaxy-os/internal/features"
 	"github.com/bil0u/galaxy-os/internal/locale"
-	"github.com/bil0u/galaxy-os/internal/services"
 	disbot "github.com/disgoorg/disgo/bot"
 	"github.com/disgoorg/disgo/discord"
 	"github.com/disgoorg/disgo/events"
@@ -63,8 +62,11 @@ var SuspiciousInterviewFeature = features.New[SuspiciousInterviewConfig](
 )
 
 func setupSuspiciousInterviewFeature(deps features.SetupDeps) error {
+	client := deps.Bot.Client
+	registry := deps.Configs.Features
+
 	mainLogic := func(member discord.Member) {
-		cfg, err := features.GetConfig[SuspiciousInterviewConfig](member.GuildID)
+		cfg, err := features.GetConfigFrom[SuspiciousInterviewConfig](registry, member.GuildID)
 		if err != nil || !cfg.Enabled {
 			slog.Warn(fmt.Sprintf("Feature 'SuspiciousInterview' is disabled for guild '%s'", member.GuildID))
 			return
@@ -76,7 +78,7 @@ func setupSuspiciousInterviewFeature(deps features.SetupDeps) error {
 			return
 		}
 
-		restClient := services.RestClient()
+		restClient := client.Rest()
 
 		preferedLocale := discord.LocaleEnglishUS
 
@@ -101,7 +103,7 @@ func setupSuspiciousInterviewFeature(deps features.SetupDeps) error {
 		}
 	}
 
-	deps.Client.AddEventListeners(
+	client.AddEventListeners(
 		disbot.NewListenerFunc(func(event *events.GuildMemberUpdate) {
 			mainLogic(event.Member)
 		}),

@@ -14,8 +14,13 @@ import (
 	bot_features "github.com/bil0u/galaxy-os/internal/features/bot"
 	guild_features "github.com/bil0u/galaxy-os/internal/features/guild"
 	"github.com/bil0u/galaxy-os/internal/services"
+	"github.com/disgoorg/disgo"
+	disbot "github.com/disgoorg/disgo/bot"
 	"github.com/disgoorg/disgo/cache"
+	"github.com/disgoorg/disgo/events"
 	"github.com/disgoorg/disgo/gateway"
+	"github.com/disgoorg/disgo/handler"
+	"github.com/disgoorg/paginator"
 	"github.com/spf13/cobra"
 )
 
@@ -87,61 +92,88 @@ func startBot(cmd *cobra.Command, _ []string) error {
 		return fmt.Errorf("no features defined for bot %q", bot)
 	}
 
-	if err := config.Init(bot); err != nil {
+	globalCfg, logCfg, botCfg, err := config.Init(bot)
+	if err != nil {
 		return fmt.Errorf("initializing config: %w", err)
 	}
 
-	config.GlobalCfg.Development = development == "true"
-	config.GlobalCfg.Version = version
-	config.GlobalCfg.Commit = commit
+	globalCfg.Development = development == "true"
+	globalCfg.Version = version
+	globalCfg.Commit = commit
 
-	if _, err := services.InitLogger(config.LogCfg.Level, config.LogCfg.Format, config.LogCfg.AddSource); err != nil {
+	if _, err := services.InitLogger(logCfg.Level, logCfg.Format, logCfg.AddSource); err != nil {
 		return fmt.Errorf("initializing logger: %w", err)
 	}
 
-	if _, err := services.InitDiscordClient(config.BotCfg.Token, def.cacheFlags, def.intents); err != nil {
-		return fmt.Errorf("initializing discord client: %w", err)
+	botLogger := slog.Default().With("bot", bot)
+
+	client, err := disgo.New(botCfg.Token,
+		disbot.WithCacheConfigOpts(cache.WithCaches(def.cacheFlags)),
+		disbot.WithGatewayConfigOpts(
+			gateway.WithIntents(def.intents),
+			gateway.WithCompress(true),
+		),
+	)
+	if err != nil {
+		return fmt.Errorf("building discord client: %w", err)
 	}
 
 	ctx := context.Background()
 
-	if err := config.InitGuilds(ctx, services.RestClient()); err != nil {
+	guilds, err := config.InitGuilds(ctx, client.Rest(), bot)
+	if err != nil {
 		return fmt.Errorf("initializing guilds config: %w", err)
 	}
 
-	slog.Debug(fmt.Sprintf("Global configuration: %+v", config.GlobalCfg))
-	slog.Debug(fmt.Sprintf("Bot configuration: %++v", config.BotCfg))
-	slog.Debug(fmt.Sprintf("Log configuration: %+v", config.LogCfg))
-	slog.Debug(fmt.Sprintf("Guilds configuration: %+v", config.GuildsCfg))
+	slog.Debug(fmt.Sprintf("Global configuration: %+v", globalCfg))
+	slog.Debug(fmt.Sprintf("Bot configuration: %++v", botCfg))
+	slog.Debug(fmt.Sprintf("Log configuration: %+v", logCfg))
+	slog.Debug(fmt.Sprintf("Guilds configuration: %+v", guilds))
 
-	client := services.Client()
+	router := handler.New()
+	pgn := paginator.New()
+	client.AddEventListeners(router, pgn)
 
-	services.InitRouter()
-	services.InitPaginator(client)
+	client.AddEventListeners(disbot.NewListenerFunc(func(_ *events.Resumed) {
+		botLogger.Info("gateway reconnected")
+	}))
 
 	if enableCron {
 		services.InitCron()
 	}
 
 	if enableOAuth2 {
-		if err := config.BotCfg.ValidateOAuth(); err != nil {
+		if err := botCfg.ValidateOAuth(); err != nil {
 			return fmt.Errorf("oauth2 config: %w", err)
 		}
-		services.InitOAuth(config.BotCfg.ApplicationID, config.BotCfg.ClientSecret, config.BotCfg.BaseURL)
+		services.InitOAuth(botCfg.ApplicationID, botCfg.ClientSecret, botCfg.BaseURL)
 	}
+
+	registry := features.NewRegistry(*def.features, botCfg, guilds)
 
 	deps := features.SetupDeps{
-		Client: client,
-		Router: services.Router(),
-		Cron:   services.Cron(),
+		Bot: features.BotServices{
+			Client: client,
+			Router: router,
+			Logger: botLogger,
+		},
+		Shared: features.SharedServices{
+			Cron: services.Cron(),
+		},
+		Configs: features.Configs{
+			Bot:      botCfg,
+			Guilds:   guilds,
+			Global:   globalCfg,
+			Features: registry,
+		},
 	}
 
-	if err := features.Init(*def.features, deps); err != nil {
-		return fmt.Errorf("initializing features: %w", err)
+	if err := features.SetupFeatures(*def.features, deps); err != nil {
+		return fmt.Errorf("setting up features: %w", err)
 	}
 
 	if syncCommands {
-		if err := features.SyncCommands(client, config.GuildsCfg.IDs(development == "true")); err != nil {
+		if err := features.SyncCommands(*def.features, client, guilds.IDs(development == "true")); err != nil {
 			return fmt.Errorf("syncing commands: %w", err)
 		}
 	}

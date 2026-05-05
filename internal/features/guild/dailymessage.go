@@ -5,10 +5,9 @@ import (
 	"log/slog"
 	"regexp"
 
-	"github.com/bil0u/galaxy-os/internal/config"
 	"github.com/bil0u/galaxy-os/internal/features"
-	"github.com/bil0u/galaxy-os/internal/services"
 	"github.com/bil0u/galaxy-os/internal/locale"
+	"github.com/disgoorg/disgo/bot"
 	"github.com/disgoorg/disgo/discord"
 	"github.com/disgoorg/snowflake/v2"
 )
@@ -53,34 +52,35 @@ func (cfg DailyMessageConfig) getCronSchdule() (string, error) {
 }
 
 func setupDailyMessageFeature(deps features.SetupDeps) error {
-	if deps.Cron == nil {
+	if deps.Shared.Cron == nil {
 		slog.Warn("Cron not available, skipping DailyMessage setup")
 		return nil
 	}
 
-	var errs []error
-	for guildID, guildConfig := range config.GuildsCfg.All() {
+	client := deps.Bot.Client
+	registry := deps.Configs.Features
+	guilds := deps.Configs.Guilds
 
-		config, err := features.GetConfig[DailyMessageConfig](guildID)
+	var errs []error
+	for guildID, guildConfig := range guilds.All() {
+
+		cfg, err := features.GetConfigFrom[DailyMessageConfig](registry, guildID)
 		if err != nil {
 			errs = append(errs, fmt.Errorf("feature config not found: %w", err))
 			continue
 		}
 
-		// Get the cron schedule for the guild
-		schedule, err := config.getCronSchdule()
+		schedule, err := cfg.getCronSchdule()
 		if err != nil {
 			errs = append(errs, fmt.Errorf("failed to get guild schedule: %w", err))
 			continue
 		}
 
-		// Add the timezone if set in the guild config
 		if guildConfig.Timezone != "" {
 			schedule = fmt.Sprintf("CRON_TZ=%s %s", guildConfig.Timezone, schedule)
 		}
 
-		// Add the cron job
-		entryID, err := deps.Cron.AddFunc(schedule, DailyMessageJob(guildID))
+		entryID, err := deps.Shared.Cron.AddFunc(schedule, dailyMessageJob(client, registry, guildID))
 		if err != nil {
 			errs = append(errs, fmt.Errorf("failed to add cron job: %w", err))
 			continue
@@ -88,7 +88,6 @@ func setupDailyMessageFeature(deps features.SetupDeps) error {
 		slog.Debug("Added cron job", slog.Any("entryID", entryID))
 	}
 
-	// Return any errors
 	if len(errs) > 0 {
 		return fmt.Errorf("failed to setup feature: %v", errs)
 	}
@@ -100,29 +99,25 @@ var dailyMessageTemplate = locale.Text{
 	discord.LocaleFrench:    "Bonjour %s! Ceci est votre message quotidien.",
 }
 
-func DailyMessageJob(guildID snowflake.ID) func() {
-
+func dailyMessageJob(client bot.Client, registry *features.FeatureRegistry, guildID snowflake.ID) func() {
 	return func() {
-
 		slog.Info("Running daily message job", slog.Any("guildID", guildID))
 
-		config, err := features.GetConfig[DailyMessageConfig](guildID)
-		if err != nil || !config.Enabled {
+		cfg, err := features.GetConfigFrom[DailyMessageConfig](registry, guildID)
+		if err != nil || !cfg.Enabled {
 			slog.Warn(fmt.Sprintf("Feature 'DailyMessage' is disabled for guild '%s'", guildID))
 			return
 		}
 
-		restClient := services.RestClient()
+		restClient := client.Rest()
 
-		// Get the guild
 		guild, err := restClient.GetGuild(guildID, false)
 		if err != nil {
 			slog.Error("failed to get guild: %w", slog.Any("err", err))
 			return
 		}
 
-		// Send the message
-		_, err = restClient.CreateMessage(config.Channel, discord.NewMessageCreateBuilder().
+		_, err = restClient.CreateMessage(cfg.Channel, discord.NewMessageCreateBuilder().
 			SetContentf(dailyMessageTemplate.Using(discord.Locale(guild.PreferredLocale)), guild.Name).
 			Build(),
 		)

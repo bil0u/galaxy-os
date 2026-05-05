@@ -46,15 +46,19 @@ func (f BotPresenceConfig) Validate() error {
 }
 
 func setupBotPresenceFeature(deps features.SetupDeps) error {
-	deps.Client.AddEventListeners(bot.NewListenerFunc(func(_ *events.Ready) {
-		setPresenceWhenReady(deps.Client)
+	client := deps.Bot.Client
+	registry := deps.Configs.Features
+	guilds := deps.Configs.Guilds
+
+	client.AddEventListeners(bot.NewListenerFunc(func(_ *events.Ready) {
+		setPresenceWhenReady(client, registry, guilds)
 	}))
 	return nil
 }
 
-func setPresenceWhenReady(client bot.Client) {
-	for guildID := range config.GuildsCfg.All() {
-		cfg, err := features.GetConfig[BotPresenceConfig](guildID)
+func setPresenceWhenReady(client bot.Client, registry *features.FeatureRegistry, guilds *config.GuildMap) {
+	for guildID := range guilds.All() {
+		cfg, err := features.GetConfigFrom[BotPresenceConfig](registry, guildID)
 		if err != nil || !cfg.Enabled {
 			continue
 		}

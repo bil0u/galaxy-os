@@ -3,7 +3,6 @@ package bot_features
 import (
 	"fmt"
 
-	"github.com/bil0u/galaxy-os/internal/config"
 	"github.com/bil0u/galaxy-os/internal/features"
 	"github.com/bil0u/galaxy-os/internal/locale"
 	"github.com/disgoorg/disgo/discord"
@@ -28,7 +27,13 @@ func (f BotInfosConfig) Validate() error {
 }
 
 func setupBotInfosFeature(deps features.SetupDeps) error {
-	deps.Router.Command("/botinfos", botInfosHandler)
+	global := deps.Configs.Global
+
+	deps.Bot.Router.Command("/botinfos", func(e *handler.CommandEvent) error {
+		return e.CreateMessage(discord.MessageCreate{
+			Content: fmt.Sprintf("Version: %s\nCommit: %s", global.Version, global.Commit),
+		})
+	})
 	return nil
 }
 
@@ -43,10 +48,4 @@ var botInfosCommand = discord.SlashCommandCreate{
 		discord.LocaleEnglishUS: "Display the bot informations",
 		discord.LocaleFrench:    "Affiche les informations du bot",
 	},
-}
-
-func botInfosHandler(e *handler.CommandEvent) error {
-	return e.CreateMessage(discord.MessageCreate{
-		Content: fmt.Sprintf("Version: %s\nCommit: %s", config.GlobalCfg.Version, config.GlobalCfg.Commit),
-	})
 }

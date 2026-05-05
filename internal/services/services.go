@@ -6,62 +6,15 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/service/sesv2"
 	cronjobs "github.com/bil0u/galaxy-os/internal/services/cron"
-	"github.com/bil0u/galaxy-os/internal/services/discord"
 	"github.com/bil0u/galaxy-os/internal/services/email"
 	"github.com/bil0u/galaxy-os/internal/services/logger"
 	"github.com/bil0u/galaxy-os/internal/services/oauth"
 	"github.com/bil0u/galaxy-os/internal/services/sql"
-	"github.com/disgoorg/disgo/bot"
-	"github.com/disgoorg/disgo/cache"
-	"github.com/disgoorg/disgo/gateway"
-	"github.com/disgoorg/disgo/handler"
 	"github.com/disgoorg/disgo/oauth2"
-	"github.com/disgoorg/disgo/rest"
-	"github.com/disgoorg/paginator"
 	"github.com/disgoorg/snowflake/v2"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/robfig/cron/v3"
 )
-
-// DISCORD
-
-func InitDiscordClient(token string, cacheFlags cache.Flags, intents gateway.Intents) (bot.Client, error) {
-	return discord.InitClient(token, cacheFlags, intents)
-}
-
-func Client() bot.Client {
-	return discord.Client()
-}
-
-func RestClient() rest.Rest {
-	client := discord.Client()
-	if client == nil {
-		return nil
-	}
-	return client.Rest()
-}
-
-// - Paginator
-
-func InitPaginator(client bot.Client) *paginator.Manager {
-	p := discord.InitPaginator()
-	client.AddEventListeners(p)
-	return p
-}
-
-func Paginator() *paginator.Manager {
-	return discord.Paginator()
-}
-
-// - Router
-
-func InitRouter() *handler.Mux {
-	return discord.InitRouter()
-}
-
-func Router() *handler.Mux {
-	return discord.Router()
-}
 
 // EMAIL
 

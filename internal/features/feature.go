@@ -3,11 +3,13 @@ package features
 import (
 	"bytes"
 	"fmt"
+	"log/slog"
 	"reflect"
 	"regexp"
 	"strings"
 	"unicode"
 
+	"github.com/bil0u/galaxy-os/internal/config"
 	"github.com/bil0u/galaxy-os/internal/locale"
 	"github.com/disgoorg/disgo/bot"
 	"github.com/disgoorg/disgo/discord"
@@ -26,10 +28,31 @@ const (
 	GuildFeature featureType = "guild"
 )
 
-type SetupDeps struct {
+// BotServices holds per-bot Discord resources.
+type BotServices struct {
 	Client bot.Client
 	Router *handler.Mux
-	Cron   *cron.Cron
+	Logger *slog.Logger
+}
+
+// SharedServices holds services shared across bots.
+type SharedServices struct {
+	Cron *cron.Cron
+}
+
+// Configs holds all configuration needed by features.
+type Configs struct {
+	Bot      *config.Bot
+	Guilds   *config.GuildMap
+	Global   *config.Global
+	Features *FeatureRegistry
+}
+
+// SetupDeps groups all dependencies passed to feature Setup functions.
+type SetupDeps struct {
+	Bot     BotServices
+	Shared  SharedServices
+	Configs Configs
 }
 
 type Feature struct {

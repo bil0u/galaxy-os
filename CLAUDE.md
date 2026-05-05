@@ -45,16 +45,16 @@ The `bot` name is injected at compile time via `-ldflags` into `cmd.bot`. It det
 
 ## Architecture
 
-### Initialization order (strict — violating it causes nil panics)
+### Initialization order
 
-Init functions are called once in a deterministic sequence from `cmd/bot.go`'s `startBot()`. Out-of-order calls cause nil-pointer panics.
+All initialization happens in `cmd/bot.go`'s `startBot()`. No package-level singletons — each resource is a local variable passed through `SetupDeps`.
 
-1. `config.Init(bot)` — reads `config.toml`, populates `config.GlobalCfg`, `config.LogCfg`, `config.BotCfg`
+1. `config.Init(bot)` — reads `config.toml`, returns `(*Global, *Log, *Bot, error)`
 2. `services.InitLogger(...)` — structured slog setup
-3. `services.InitDiscordClient(...)` — single client for REST and gateway
-4. `config.InitGuilds(ctx, restClient)` — queries Discord API for guilds, reads per-guild config files
-5. `services.InitRouter()` / `InitPaginator(...)` / `InitCron()` / `InitOAuth(...)` — remaining services
-6. `features.Init(featureSet, deps)` — creates Manager, calls each feature's `Setup(deps)`
+3. `disgo.New(token, ...)` — creates per-bot Discord client directly (no singleton)
+4. `config.InitGuilds(ctx, client.Rest(), botName)` — queries Discord API for guilds, reads per-guild config files
+5. `handler.New()` / `paginator.New()` / `services.InitCron()` / `services.InitOAuth(...)` — per-bot router/paginator, shared cron/oauth
+6. `features.NewRegistry(...)` + `features.SetupFeatures(fs, deps)` — builds config registry, calls each feature's `Setup(deps)`
 
 ### Configuration system
 
@@ -63,11 +63,11 @@ TOML-based, managed by viper. Two tiers:
 - `config.toml` — global + per-bot config under `[bot.<botname>]`, bot-level features under `[features.<botname>.<featurekey>]`
 - `config.<guild_snowflake_id>.toml` — per-guild settings, guild-level features under `[features.<botname>.<featurekey>]`
 
-Both are **gitignored**. Only `config.example.toml` is tracked. Feature configs are accessed at runtime via:
+Both are **gitignored**. Only `config.example.toml` is tracked. Feature configs are accessed at runtime via the `FeatureRegistry` (passed through `deps.Configs.Features`):
 
 ```go
-features.GetConfig[MyConfig](guildID)   // guild feature
-features.GetBotConfig[MyConfig]()       // bot feature (guildID = 0)
+features.GetConfigFrom[MyConfig](registry, guildID)   // guild feature
+features.GetConfigFrom[MyConfig](registry, 0)         // bot feature (guildID = 0)
 ```
 
 ### Feature system
@@ -80,20 +80,26 @@ Each feature has:
 
 Feature type must be declared explicitly with `features.WithType(features.BotFeature)` or `features.WithType(features.GuildFeature)`. The key is auto-derived from the config struct name (`DailyMessageConfig` → `daily_message`).
 
-`SetupDeps` provides: `Client bot.Client`, `Router *handler.Mux`, `Cron *cron.Cron` (nil if `--cron` not set).
+`SetupDeps` is grouped into three semantic sections:
+
+- `deps.Bot` — `BotServices{Client bot.Client, Router *handler.Mux, Logger *slog.Logger}`
+- `deps.Shared` — `SharedServices{Cron *cron.Cron}` (nil if `--cron` not set)
+- `deps.Configs` — `Configs{Bot *config.Bot, Guilds *config.GuildMap, Global *config.Global, Features *FeatureRegistry}`
+
+Features capture what they need from deps in closures — no globals, no facade calls at runtime.
 
 **Adding a new feature:**
 
 1. Create file in `internal/features/bot/` or `internal/features/guild/`
 2. Define config struct implementing `features.Config`
 3. Export `var XFeature = features.New[XConfig](setupFunc, features.WithType(...), ...opts)`
-4. Register in `cmd/bot.go`'s `botFeatures` map for the relevant bot(s)
+4. Register in `cmd/bot.go`'s `bots` map for the relevant bot(s)
 
 ### Services layer
 
-`internal/services/services.go` is the public facade over sub-packages (`discord/`, `cron/`, `email/`, `oauth/`, `sql/`, `logger/`). Sub-package vars are unexported — the facade is the only access path. Always use `services.*()` / `services.Init*()` — never import sub-packages directly from features.
+`internal/services/services.go` is a thin facade over shared service sub-packages (`cron/`, `email/`, `oauth/`, `sql/`, `logger/`). Discord resources (client, router, paginator) are created directly in `cmd/bot.go` — no singleton wrapper.
 
-One Discord client exists (`bot.Client`, not pointer-to-interface). Feature `Setup()` functions receive dependencies via `SetupDeps` instead of calling the facade; runtime event handlers may still use `services.RestClient()` for REST calls.
+Features receive all dependencies via `SetupDeps` and derive REST from `deps.Bot.Client.Rest()`. No feature should import the services package.
 
 ### Localization
 

@@ -28,9 +28,9 @@ var TestFeature = features.New[TestConfig](
 )
 
 func setupTestFeature(deps features.SetupDeps) error {
-	deps.Router.Command("/test", TestHandler)
-	deps.Router.Autocomplete("/test", TestAutocompleteHandler)
-	deps.Router.Component("/test-button", TestComponent)
+	deps.Bot.Router.Command("/test", TestHandler)
+	deps.Bot.Router.Autocomplete("/test", TestAutocompleteHandler)
+	deps.Bot.Router.Component("/test-button", TestComponent)
 	return nil
 }
 

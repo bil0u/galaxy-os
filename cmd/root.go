@@ -15,7 +15,6 @@ var (
 
 func init() {
 	root.AddCommand(botCmd)
-	root.AddCommand(generateCmd)
 }
 
 var root = &cobra.Command{

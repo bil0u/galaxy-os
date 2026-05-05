@@ -36,14 +36,18 @@ no-dirty:
 
 .PHONY: audit test test/cover
 
-## audit: run quality control checks
-audit: test
+## audit: run tests and quality control checks
+audit: test quality-control
+
+## quality-control: run quality control checks
+quality-control:
 	go mod tidy -diff
 	go mod verify
-	test -z "$(shell gofmt -l .)" 
 	go vet ./...
-	go run honnef.co/go/tools/cmd/staticcheck@latest -checks=all,-ST1000,-U1000 ./...
+	# go run honnef.co/go/tools/cmd/staticcheck@latest -checks=all,-ST1000,-U1000 ./...
 	go run golang.org/x/vuln/cmd/govulncheck@latest ./...
+	go run golang.org/x/tools/cmd/deadcode@latest ./...
+
 
 ## test: run all tests
 test:

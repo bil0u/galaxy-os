@@ -1,5 +1,3 @@
-# There should be one config per bot in bots/ with the name config.<botname>.toml
-
 [log]
 # valid levels are "debug", "info", "warn", "error"
 level = "info"
@@ -8,7 +6,11 @@ format = "text"
 # whether to add the log source to the log message
 add_source = true
 
-[bots.name]
+# Replace <botname> with the actual bot name (e.g. [bot.hue])
+[bot.<botname>]
 # ApplicationID and Token are required
 application_id = 0
 token = ""
+# Only required when running with --oauth2
+client_secret = ""
+base_url = ""

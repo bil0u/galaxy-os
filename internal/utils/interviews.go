@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"errors"
 	"fmt"
 	"regexp"
 	"strconv"
@@ -19,8 +20,8 @@ func (i Interview) IsValid() (bool, error) {
 			errs = append(errs, err)
 		}
 	}
-	if len(errs) > 0 {
-		return false, fmt.Errorf("invalid interview: %v", errs)
+	if err := errors.Join(errs...); err != nil {
+		return false, fmt.Errorf("invalid interview: %w", err)
 	}
 	return true, nil
 }
@@ -96,8 +97,8 @@ func (i InterviewQuestion) isProperlyConfigured() error {
 		}
 	}
 
-	if len(errs) > 0 {
-		return fmt.Errorf("invalid interview question: %v", errs)
+	if err := errors.Join(errs...); err != nil {
+		return fmt.Errorf("invalid interview question: %w", err)
 	}
 	return nil
 }
@@ -237,8 +238,8 @@ func intRespectConstraint(intValue int, constraints []string) (bool, error) {
 		}
 	}
 
-	if len(errs) > 0 {
-		return false, fmt.Errorf("invalid answer: %v", errs)
+	if err := errors.Join(errs...); err != nil {
+		return false, fmt.Errorf("invalid answer: %w", err)
 	}
 	return true, nil
 }

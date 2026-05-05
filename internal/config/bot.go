@@ -1,10 +1,10 @@
 package config
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
-	"github.com/bil0u/galaxy-os/internal/utils"
 	"github.com/disgoorg/snowflake/v2"
 	"github.com/spf13/viper"
 	"golang.org/x/text/cases"
@@ -23,21 +23,21 @@ type BotConfig struct {
 
 // `validate` validates the bot configuration
 func (config BotConfig) validate() error {
-	errs := utils.ManyErrors{}
+	var errs []error
 
 	if config.Token == "" {
-		errs.Add(fmt.Errorf("bot.token must be provided"))
+		errs = append(errs, fmt.Errorf("bot.token must be provided"))
 	}
 
 	if config.ApplicationID == 0 {
-		errs.Add(fmt.Errorf("bot.application_id must be provided"))
+		errs = append(errs, fmt.Errorf("bot.application_id must be provided"))
 	}
 
 	if config.BaseURL == "" || config.ClientSecret == "" {
-		errs.Add(fmt.Errorf("bot.base_url and bot.client_secret must be provided"))
+		errs = append(errs, fmt.Errorf("bot.base_url and bot.client_secret must be provided"))
 	}
 
-	return errs.ToError()
+	return errors.Join(errs...)
 }
 
 // `DisplayName` returns the bot name in a human readable format

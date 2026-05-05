@@ -1,6 +1,7 @@
 package features
 
 import (
+	"errors"
 	"fmt"
 	"log/slog"
 	"reflect"
@@ -101,10 +102,7 @@ func (fm *FeatureManager) SetupFeatures() error {
 			errs = append(errs, err)
 		}
 	}
-	if len(errs) > 0 {
-		return fmt.Errorf("failed to setup features: %v", errs)
-	}
-	return nil
+	return errors.Join(errs...)
 }
 
 // `SyncCommands` syncs the commands to the Discord API

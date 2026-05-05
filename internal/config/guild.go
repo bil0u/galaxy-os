@@ -1,9 +1,9 @@
 package config
 
 import (
+	"errors"
 	"fmt"
 
-	"github.com/bil0u/galaxy-os/internal/utils"
 	"github.com/disgoorg/snowflake/v2"
 	"github.com/spf13/viper"
 )
@@ -17,14 +17,13 @@ type GuildConfig struct {
 
 // `validate` validates the guild configuration.
 func (config GuildConfig) validate() error {
-
-	errs := utils.ManyErrors{}
+	var errs []error
 
 	if config.Timezone == "" {
-		errs.Add(fmt.Errorf("guild.timezone must be provided"))
+		errs = append(errs, fmt.Errorf("guild.timezone must be provided"))
 	}
 
-	return errs.ToError()
+	return errors.Join(errs...)
 }
 
 // `NewGuildConfig` creates a new GuildConfig object from a viper configuration.

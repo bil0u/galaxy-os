@@ -44,37 +44,47 @@ var startCmd = &cobra.Command{
 	RunE:  startBot,
 }
 
-var botFeatures = map[string]*features.Set{
-	"hue": features.NewSet(
-		// Bot related features
-		bot_features.BotInfosFeature,
-		bot_features.LogPermissionsFeature,
-		bot_features.TestFeature,
-		// Guild related features
-		guild_features.BotPresenceFeature,
-		guild_features.SelfAssignRolesFeature,
-		guild_features.DailyMessageFeature,
-		guild_features.SuspiciousInterviewFeature,
-	),
-	"kevin": features.NewSet(
-		// Bot related features
-		bot_features.BotInfosFeature,
-		bot_features.LogPermissionsFeature,
-		bot_features.TestFeature,
-		// Guild related features
-		guild_features.BotPresenceFeature,
-		guild_features.SelfAssignRolesFeature,
-		guild_features.DailyMessageFeature,
-	),
+type botDef struct {
+	features   *features.Set
+	cacheFlags cache.Flags
+	intents    gateway.Intents
+}
+
+var bots = map[string]botDef{
+	"hue": {
+		features: features.NewSet(
+			bot_features.BotInfosFeature,
+			bot_features.LogPermissionsFeature,
+			bot_features.TestFeature,
+			guild_features.BotPresenceFeature,
+			guild_features.SelfAssignRolesFeature,
+			guild_features.DailyMessageFeature,
+			guild_features.SuspiciousInterviewFeature,
+		),
+		cacheFlags: cache.FlagGuilds | cache.FlagMembers | cache.FlagRoles,
+		intents:    gateway.IntentGuilds | gateway.IntentGuildMembers,
+	},
+	"kevin": {
+		features: features.NewSet(
+			bot_features.BotInfosFeature,
+			bot_features.LogPermissionsFeature,
+			bot_features.TestFeature,
+			guild_features.BotPresenceFeature,
+			guild_features.SelfAssignRolesFeature,
+			guild_features.DailyMessageFeature,
+		),
+		cacheFlags: cache.FlagGuilds | cache.FlagRoles,
+		intents:    gateway.IntentGuilds,
+	},
 }
 
 func startBot(cmd *cobra.Command, _ []string) error {
-	featureSet, ok := botFeatures[bot]
+	def, ok := bots[bot]
 	if !ok {
 		return fmt.Errorf("bot %q not found", bot)
 	}
-	if featureSet == nil {
-		return fmt.Errorf("no features found for bot %q", bot)
+	if def.features == nil {
+		return fmt.Errorf("no features defined for bot %q", bot)
 	}
 
 	if err := config.Init(bot); err != nil {
@@ -89,7 +99,7 @@ func startBot(cmd *cobra.Command, _ []string) error {
 		return fmt.Errorf("initializing logger: %w", err)
 	}
 
-	if _, err := services.InitDiscordClient(config.BotCfg.Token, []cache.Flags{cache.FlagsAll}, []gateway.Intents{gateway.IntentsAll}); err != nil {
+	if _, err := services.InitDiscordClient(config.BotCfg.Token, def.cacheFlags, def.intents); err != nil {
 		return fmt.Errorf("initializing discord client: %w", err)
 	}
 
@@ -126,7 +136,7 @@ func startBot(cmd *cobra.Command, _ []string) error {
 		Cron:   services.Cron(),
 	}
 
-	if err := features.Init(*featureSet, deps); err != nil {
+	if err := features.Init(*def.features, deps); err != nil {
 		return fmt.Errorf("initializing features: %w", err)
 	}
 

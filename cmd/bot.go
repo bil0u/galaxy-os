@@ -93,14 +93,10 @@ func startBot(cmd *cobra.Command, _ []string) error {
 		return fmt.Errorf("initializing discord client: %w", err)
 	}
 
-	if err := config.InitGuilds(services.GetRestClient()); err != nil {
-		return fmt.Errorf("initializing guilds config: %w", err)
-	}
+	ctx := context.Background()
 
-	if config.Guilds.Count() > 0 {
-		if _, err := services.InitDiscordShardedClient(config.Bot.Token, config.Guilds.Count(), []cache.Flags{cache.FlagsAll}, []gateway.Intents{gateway.IntentsAll}); err != nil {
-			return fmt.Errorf("initializing sharded discord client: %w", err)
-		}
+	if err := config.InitGuilds(ctx, services.GetRestClient()); err != nil {
+		return fmt.Errorf("initializing guilds config: %w", err)
 	}
 
 	slog.Debug(fmt.Sprintf("Global configuration: %+v", config.Global))
@@ -118,30 +114,30 @@ func startBot(cmd *cobra.Command, _ []string) error {
 	}
 
 	if enableOAuth2 {
+		if err := config.Bot.ValidateOAuth(); err != nil {
+			return fmt.Errorf("oauth2 config: %w", err)
+		}
 		services.InitOAuth(config.Bot.ApplicationID, config.Bot.ClientSecret, config.Bot.BaseURL)
 	}
 
-	if err := features.Init(*featureSet); err != nil {
+	deps := features.SetupDeps{
+		Client: client,
+		Router: services.GetRouter(),
+		Cron:   services.GetCron(),
+	}
+
+	if err := features.Init(*featureSet, deps); err != nil {
 		return fmt.Errorf("initializing features: %w", err)
 	}
 
 	if syncCommands {
-		client := services.GetClient()
-		if err := features.Manager.SyncCommands(*client, config.Guilds.IDs(development == "true")); err != nil {
+		if err := features.Manager.SyncCommands(client, config.Guilds.IDs(development == "true")); err != nil {
 			return fmt.Errorf("syncing commands: %w", err)
 		}
 	}
 
-	ctx := context.Background()
-
-	if (*client).HasShardManager() {
-		if err := (*client).OpenShardManager(ctx); err != nil {
-			return fmt.Errorf("opening gateway through shard manager: %w", err)
-		}
-	} else {
-		if err := (*client).OpenGateway(ctx); err != nil {
-			return fmt.Errorf("opening gateway: %w", err)
-		}
+	if err := client.OpenGateway(ctx); err != nil {
+		return fmt.Errorf("opening gateway: %w", err)
 	}
 
 	if enableCron {
@@ -158,7 +154,7 @@ func startBot(cmd *cobra.Command, _ []string) error {
 		}
 		withTimeout, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
-		(*client).Close(withTimeout)
+		client.Close(withTimeout)
 	}()
 
 	slog.Info("----- Bot is running 🚀 Press CTRL-C to exit -----")

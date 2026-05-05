@@ -91,14 +91,14 @@ func (fm *FeatureManager) ConfigFor(guildID snowflake.ID, cfgType reflect.Type) 
 }
 
 // `SetupFeatures` sets up the features, checking for validity first
-func (fm *FeatureManager) SetupFeatures() error {
+func (fm *FeatureManager) SetupFeatures(deps SetupDeps) error {
 	var errs []error
 	for _, feature := range fm.features {
 		if err := feature.IsValid(); err != nil {
 			errs = append(errs, err)
 			continue
 		}
-		if err := feature.Setup(); err != nil {
+		if err := feature.Setup(deps); err != nil {
 			errs = append(errs, err)
 		}
 	}

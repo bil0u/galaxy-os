@@ -4,9 +4,13 @@ import (
 	"github.com/disgoorg/disgo/handler"
 )
 
-var Router *handler.Mux
+var router *handler.Mux
 
 func InitRouter() *handler.Mux {
-	Router = handler.New()
-	return Router
+	router = handler.New()
+	return router
+}
+
+func Router() *handler.Mux {
+	return router
 }

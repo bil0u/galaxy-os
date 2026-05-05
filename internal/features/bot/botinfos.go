@@ -5,7 +5,6 @@ import (
 
 	"github.com/bil0u/galaxy-os/internal/config"
 	"github.com/bil0u/galaxy-os/internal/features"
-	"github.com/bil0u/galaxy-os/internal/services"
 	"github.com/bil0u/galaxy-os/internal/utils"
 	"github.com/disgoorg/disgo/discord"
 	"github.com/disgoorg/disgo/handler"
@@ -13,6 +12,7 @@ import (
 
 var BotInfosFeature = features.New[BotInfosConfig](
 	setupBotInfosFeature,
+	features.WithType(features.BotFeature),
 	features.WithLocalizedName(discord.LocaleFrench, "Bot Infos"),
 	features.WithDescription(utils.LocalizedString{
 		discord.LocaleEnglishUS: "Display the bot informations",
@@ -27,9 +27,8 @@ func (f BotInfosConfig) Validate() error {
 	return nil
 }
 
-func setupBotInfosFeature() error {
-	router := services.GetRouter()
-	router.Command("/botinfos", botInfosHandler)
+func setupBotInfosFeature(deps features.SetupDeps) error {
+	deps.Router.Command("/botinfos", botInfosHandler)
 	return nil
 }
 

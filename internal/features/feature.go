@@ -4,15 +4,13 @@ import (
 	"fmt"
 	"reflect"
 	"regexp"
-	"strings"
 
 	"github.com/bil0u/galaxy-os/internal/utils"
+	"github.com/disgoorg/disgo/bot"
 	"github.com/disgoorg/disgo/discord"
+	"github.com/disgoorg/disgo/handler"
+	"github.com/robfig/cron/v3"
 )
-
-// type FeatureConfig interface {
-// 	Validate() error
-// }
 
 type FeatureConfig interface {
 	Validate() error
@@ -25,12 +23,18 @@ const (
 	GuildFeature featureType = "guild"
 )
 
+type SetupDeps struct {
+	Client bot.Client
+	Router *handler.Mux
+	Cron   *cron.Cron
+}
+
 type Feature struct {
 	Type        featureType
 	Key         string
 	Name        utils.LocalizedString
 	Description utils.LocalizedString
-	Setup       func() error
+	Setup       func(deps SetupDeps) error
 	cfgType     reflect.Type
 	cmdCreates  []discord.ApplicationCommandCreate
 }
@@ -66,7 +70,7 @@ func (f Feature) CommandsToSync() []discord.ApplicationCommandCreate {
 	return f.cmdCreates
 }
 
-func New[T FeatureConfig](setup func() error, opts ...featureOption) Feature {
+func New[T FeatureConfig](setup func(deps SetupDeps) error, opts ...featureOption) Feature {
 	var zero T
 
 	feature := defaultFeature(fmt.Sprintf("%T", zero))
@@ -82,19 +86,10 @@ type featureOption func(*Feature)
 
 func defaultFeature(configName string) Feature {
 	feature := Feature{}
-	// Set the default key, matching the following pattern: "bot_features.(BotExample)FeatureConfig"
-	if strings.HasPrefix(configName, "bot") {
-		feature.Type = BotFeature
-	} else if strings.HasPrefix(configName, "guild") {
-		feature.Type = GuildFeature
-	}
-	// Extract base string from the config name
 	pattern := regexp.MustCompile(`^.*?\.(.*?)(?:Feature|Config)*$`)
 	matches := pattern.FindStringSubmatch(configName)
 	if matches != nil {
-		// Convert the key to snake case
 		feature.Key = utils.ToSnakeCase(matches[1])
-		// Set the default name, adding spaces between camel case words
 		feature.Name = utils.LocalizedString{
 			discord.LocaleEnglishUS: utils.AddSpaces(matches[1]),
 		}

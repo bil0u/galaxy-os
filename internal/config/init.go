@@ -1,6 +1,7 @@
 package config
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 
@@ -55,7 +56,7 @@ func Init(botName string) error {
 }
 
 // InitGuilds initializes the guilds configuration. It should be called after Init.
-func InitGuilds(client rest.Rest) error {
+func InitGuilds(_ context.Context, client rest.Rest) error {
 	botGuilds, err := client.GetCurrentUserGuilds("", 0, 0, 0, true)
 	if err != nil {
 		return fmt.Errorf("fetching bot guilds: %w", err)

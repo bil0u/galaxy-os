@@ -7,7 +7,7 @@ import (
 	"sync"
 )
 
-var Logger *slog.Logger
+var logger *slog.Logger
 
 func Init(level slog.Level, format string, addSource bool) (*slog.Logger, error) {
 	var handler slog.Handler
@@ -32,9 +32,13 @@ func Init(level slog.Level, format string, addSource bool) (*slog.Logger, error)
 	default:
 		return nil, fmt.Errorf("unknown log format %q", format)
 	}
-	Logger = slog.New(handler)
-	slog.SetDefault(Logger)
-	return Logger, nil
+	logger = slog.New(handler)
+	slog.SetDefault(logger)
+	return logger, nil
+}
+
+func Logger() *slog.Logger {
+	return logger
 }
 
 func newHandler(opts *slog.HandlerOptions) *LogHandler {

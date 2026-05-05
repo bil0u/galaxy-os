@@ -51,6 +51,7 @@ func (f SuspiciousInterviewConfig) Validate() error {
 
 var SuspiciousInterviewFeature = features.New[SuspiciousInterviewConfig](
 	setupSuspiciousInterviewFeature,
+	features.WithType(features.GuildFeature),
 	features.WithName(utils.LocalizedString{
 		discord.LocaleEnglishUS: "Suspicious Role Interview",
 		discord.LocaleFrench:    "Entretien des rôles suspects",
@@ -61,51 +62,34 @@ var SuspiciousInterviewFeature = features.New[SuspiciousInterviewConfig](
 	}),
 )
 
-func setupSuspiciousInterviewFeature() error {
-
-	client := services.GetDiscordShardedClient()
-	if client == nil {
-		return fmt.Errorf("client is nil")
-	}
-
-	restClient := (*client).Rest()
-	if restClient == nil {
-		return fmt.Errorf("rest client is nil")
-	}
-
+func setupSuspiciousInterviewFeature(deps features.SetupDeps) error {
 	mainLogic := func(member discord.Member) {
-
-		// Getting the feature definition from the guild config
 		cfg, err := features.GetConfig[SuspiciousInterviewConfig](member.GuildID)
 		if err != nil || !cfg.Enabled {
 			slog.Warn(fmt.Sprintf("Feature 'SuspiciousInterview' is disabled for guild '%s'", member.GuildID))
 			return
 		}
 
-		// Check if the cfg is properly configured
 		err = cfg.Validate()
 		if err != nil {
 			slog.Error(fmt.Sprintf("feature is not properly configured for guild '%s'", member.GuildID), slog.Any("err", err))
 			return
 		}
 
+		restClient := services.GetRestClient()
+
 		preferedLocale := discord.LocaleEnglishUS
 
-		// Get the guild locale
 		guild, err := restClient.GetGuild(member.GuildID, false)
 		if err == nil {
 			preferedLocale = discord.Locale(guild.PreferredLocale)
 		}
 
-		// Inspect each role of the user
 		for _, roleID := range member.RoleIDs {
-
-			// Check if the role is in the list of suspicious roles
 			for _, susRole := range cfg.DetectRoles {
 				if roleID == susRole {
 					slog.Info("User has a suspicious role", slog.Any("userID", member.User.ID), slog.Any("roleID", roleID))
 
-					// Execute the interview
 					slog.Info(fmt.Sprintf("Running interview for user '%s'", member.EffectiveName()))
 					err := cfg.ExecuteInterview(restClient, member, preferedLocale)
 					if err != nil {
@@ -113,12 +97,11 @@ func setupSuspiciousInterviewFeature() error {
 						return
 					}
 				}
-
 			}
 		}
 	}
 
-	(*client).AddEventListeners(
+	deps.Client.AddEventListeners(
 		disbot.NewListenerFunc(func(event *events.GuildMemberUpdate) {
 			mainLogic(event.Member)
 		}),

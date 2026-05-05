@@ -4,20 +4,24 @@ import (
 	"github.com/robfig/cron/v3"
 )
 
-var Cron *cron.Cron
+var scheduler *cron.Cron
 
 func InitCron() *cron.Cron {
-	Cron = cron.New(cron.WithLogger(cronLogger{}), cron.WithChain(
+	scheduler = cron.New(cron.WithLogger(cronLogger{}), cron.WithChain(
 		cron.Recover(cron.DefaultLogger),
 	))
-	return Cron
+	return scheduler
+}
+
+func Scheduler() *cron.Cron {
+	return scheduler
 }
 
 func StartCron() {
-	Cron.Start()
+	scheduler.Start()
 }
 
 func StopCron() {
-	closeCtx := Cron.Stop()
+	closeCtx := scheduler.Stop()
 	<-closeCtx.Done()
 }

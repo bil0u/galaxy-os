@@ -15,6 +15,7 @@ import (
 
 var DailyMessageFeature = features.New[DailyMessageConfig](
 	setupDailyMessageFeature,
+	features.WithType(features.GuildFeature),
 	features.WithLocalizedName(discord.LocaleFrench, "Message du jour"),
 	features.WithDescription(utils.LocalizedString{
 		discord.LocaleEnglishUS: "Send a message every day at a specific time",
@@ -51,9 +52,11 @@ func (cfg DailyMessageConfig) getCronSchdule() (string, error) {
 	return fmt.Sprintf("%s %s * * *", match[2], match[1]), nil
 }
 
-func setupDailyMessageFeature() error {
-
-	cron := services.GetCron()
+func setupDailyMessageFeature(deps features.SetupDeps) error {
+	if deps.Cron == nil {
+		slog.Warn("Cron not available, skipping DailyMessage setup")
+		return nil
+	}
 
 	var errs []error
 	for guildID, guildConfig := range config.Guilds.All() {
@@ -77,7 +80,7 @@ func setupDailyMessageFeature() error {
 		}
 
 		// Add the cron job
-		entryID, err := cron.AddFunc(schedule, DailyMessageJob(guildID))
+		entryID, err := deps.Cron.AddFunc(schedule, DailyMessageJob(guildID))
 		if err != nil {
 			errs = append(errs, fmt.Errorf("failed to add cron job: %w", err))
 			continue

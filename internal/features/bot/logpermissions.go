@@ -20,6 +20,7 @@ func (f LogPermissionsConfig) Validate() error {
 
 var LogPermissionsFeature = features.New[LogPermissionsConfig](
 	setupBotPermissionsFeature,
+	features.WithType(features.BotFeature),
 	features.WithLocalizedName(discord.LocaleFrench, "Affiche les Permissions"),
 	features.WithDescription(utils.LocalizedString{
 		discord.LocaleEnglishUS: "Log the permissions of the bot",
@@ -27,7 +28,7 @@ var LogPermissionsFeature = features.New[LogPermissionsConfig](
 	}),
 )
 
-func setupBotPermissionsFeature() error {
+func setupBotPermissionsFeature(deps features.SetupDeps) error {
 	return nil
 }
 

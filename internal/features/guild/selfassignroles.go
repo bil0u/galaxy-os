@@ -16,6 +16,7 @@ import (
 
 var SelfAssignRolesFeature = features.New[SelfAssignRolesConfig](
 	setupSelfAssignRolesFeature,
+	features.WithType(features.GuildFeature),
 	features.WithName(utils.LocalizedString{
 		discord.LocaleEnglishUS: "Self assign roles",
 		discord.LocaleFrench:    "Auto-attribution de rôles",
@@ -43,11 +44,8 @@ func (f SelfAssignRolesConfig) Validate() error {
 	return nil
 }
 
-func setupSelfAssignRolesFeature() error {
-
-	client := services.GetClient()
-
-	(*client).AddEventListeners(disbot.NewListenerFunc(selfAssignRoles))
+func setupSelfAssignRolesFeature(deps features.SetupDeps) error {
+	deps.Client.AddEventListeners(disbot.NewListenerFunc(selfAssignRoles))
 	return nil
 }
 

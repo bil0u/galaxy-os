@@ -9,7 +9,7 @@ import (
 	pgxUUID "github.com/vgarvardt/pgx-google-uuid/v5"
 )
 
-var PgPool *pgxpool.Pool
+var pool *pgxpool.Pool
 
 func Init(ctx context.Context, pgURL string) (*pgxpool.Pool, error) {
 	poolCfg, err := pgxpool.ParseConfig(pgURL)
@@ -27,6 +27,10 @@ func Init(ctx context.Context, pgURL string) (*pgxpool.Pool, error) {
 		return nil, fmt.Errorf("creating connection pool: %w", err)
 	}
 
-	PgPool = dbpool
-	return PgPool, nil
+	pool = dbpool
+	return pool, nil
+}
+
+func Pool() *pgxpool.Pool {
+	return pool
 }

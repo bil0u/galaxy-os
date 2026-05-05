@@ -25,51 +25,32 @@ import (
 
 // DISCORD
 
-func GetClient() *bot.Client {
-	if discord.ShardedClient != nil {
-		return discord.ShardedClient
-	}
-	return discord.Client
-}
-
-func GetRestClient() rest.Rest {
-	client := GetClient()
-	if client == nil {
-		return nil
-	}
-	return (*client).Rest()
-}
-
-// - Client
-
-func InitDiscordClient(token string, caches []cache.Flags, intents []gateway.Intents) (*bot.Client, error) {
+func InitDiscordClient(token string, caches []cache.Flags, intents []gateway.Intents) (bot.Client, error) {
 	return discord.InitClient(token, caches, intents)
 }
 
-func GetDiscordClient() *bot.Client {
-	return discord.Client
+func GetClient() bot.Client {
+	return discord.Client()
 }
 
-// - ShardedClient
-
-func InitDiscordShardedClient(token string, shardCount int, caches []cache.Flags, intents []gateway.Intents) (*bot.Client, error) {
-	return discord.InitShardedClient(token, shardCount, caches, intents)
-}
-
-func GetDiscordShardedClient() *bot.Client {
-	return discord.ShardedClient
+func GetRestClient() rest.Rest {
+	client := discord.Client()
+	if client == nil {
+		return nil
+	}
+	return client.Rest()
 }
 
 // - Paginator
 
-func InitPaginator(client *bot.Client) *paginator.Manager {
+func InitPaginator(client bot.Client) *paginator.Manager {
 	p := discord.InitPaginator()
-	(*client).AddEventListeners(p)
+	client.AddEventListeners(p)
 	return p
 }
 
 func GetPaginator() *paginator.Manager {
-	return discord.Paginator
+	return discord.Paginator()
 }
 
 // - Router
@@ -79,7 +60,7 @@ func InitRouter() *handler.Mux {
 }
 
 func GetRouter() *handler.Mux {
-	return discord.Router
+	return discord.Router()
 }
 
 // EMAIL
@@ -89,7 +70,7 @@ func InitEmail(ctx context.Context) (*sesv2.Client, error) {
 }
 
 func GetEmailClient() *sesv2.Client {
-	return email.Client
+	return email.Client()
 }
 
 // LOGGER
@@ -99,17 +80,17 @@ func InitLogger(level slog.Level, format string, addSource bool) (*slog.Logger, 
 }
 
 func GetLogger() *slog.Logger {
-	return logger.Logger
+	return logger.Logger()
 }
 
 // OAUTH
 
-func InitOAuth(applicationID snowflake.ID, clientSecret, baseURL string) *oauth2.Client {
+func InitOAuth(applicationID snowflake.ID, clientSecret, baseURL string) oauth2.Client {
 	return oauth.Init(applicationID, clientSecret, baseURL)
 }
 
-func GetOAuthClient() *oauth2.Client {
-	return oauth.Client
+func GetOAuthClient() oauth2.Client {
+	return oauth.Client()
 }
 
 func StartOAuth() {
@@ -123,7 +104,7 @@ func InitSQL(ctx context.Context, pgURL string) (*pgxpool.Pool, error) {
 }
 
 func GetPool() *pgxpool.Pool {
-	return sql.PgPool
+	return sql.Pool()
 }
 
 // TASKS
@@ -133,7 +114,7 @@ func InitCron() *cron.Cron {
 }
 
 func GetCron() *cron.Cron {
-	return cronjobs.Cron
+	return cronjobs.Scheduler()
 }
 
 func StartCron() {

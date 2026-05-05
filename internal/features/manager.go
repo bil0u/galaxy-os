@@ -33,27 +33,27 @@ func (fm *FeatureManager) getFeaturesDefs(guildID snowflake.ID) []*Feature {
 }
 
 // `guildFeaturesRaw` returns the raw features configurations for a specific guild
-func (fm *FeatureManager) guildFeaturesRaw(guildID snowflake.ID) *viper.Viper {
+func (manager *FeatureManager) guildFeaturesRaw(guildID snowflake.ID) *viper.Viper {
 	if guildID == 0 {
-		return fm.botConfig.FeaturesDefs
+		return manager.botConfig.FeaturesDefs
 	}
 
-	cfg := fm.guildsConfigs.Get(guildID)
-	if cfg == nil {
+	config := manager.guildsConfigs.Get(guildID)
+	if config == nil {
 		return nil
 	}
 
-	return cfg.FeaturesDefs
+	return config.FeaturesDefs
 }
 
 // `ConfigRaw` returns the raw feature configuration for a specific guild and feature key
-func (fm *FeatureManager) ConfigRaw(guildID snowflake.ID, featureKey string) (*viper.Viper, error) {
+func (manager *FeatureManager) ConfigRaw(guildID snowflake.ID, featureKey string) (*viper.Viper, error) {
 	slog.Debug(fmt.Sprintf("Getting feature configuration for guild '%d' and feature '%s'", guildID, featureKey))
-	guildFeatures := fm.guildFeaturesRaw(guildID)
+	guildFeatures := manager.guildFeaturesRaw(guildID)
 	if guildFeatures == nil {
-		return nil, fmt.Errorf("no config exists for guild '%d'", guildID)
+		return nil, fmt.Errorf("no feature config exists for guild '%d'", guildID)
 	}
-	if guildFeatures == nil || !guildFeatures.IsSet(featureKey) {
+	if !guildFeatures.IsSet(featureKey) {
 		return nil, fmt.Errorf("no config defined for feature with key '%s' in guild '%d'", featureKey, guildID)
 	}
 

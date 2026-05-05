@@ -120,9 +120,9 @@ func WithName(name utils.LocalizedString) featureOption {
 	}
 }
 
-func WithDescription(name utils.LocalizedString) featureOption {
+func WithDescription(description utils.LocalizedString) featureOption {
 	return func(f *Feature) {
-		f.Name = name
+		f.Description = description
 	}
 }
 

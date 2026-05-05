@@ -30,9 +30,11 @@ func NewLogConfig(raw *viper.Viper) (*LogConfig, error) {
 		AddSource: false,
 	}
 
-	err := raw.Sub("log").Unmarshal(&newCfg)
-
-	if err != nil {
+	logSub := raw.Sub("log")
+	if logSub == nil {
+		return &newCfg, newCfg.validate()
+	}
+	if err := logSub.Unmarshal(&newCfg); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal log configuration: %w", err)
 	}
 

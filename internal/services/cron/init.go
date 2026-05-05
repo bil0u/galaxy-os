@@ -1,7 +1,6 @@
 package cron
 
 import (
-	"context"
 	"sync"
 
 	"github.com/robfig/cron/v3"
@@ -21,21 +20,11 @@ func InitCron() *cron.Cron {
 	return Cron
 }
 
-func StartCron(ctx context.Context) {
+func StartCron() {
+	Cron.Start()
+}
 
-	wg := &sync.WaitGroup{}
-	wg.Add(1)
-
-	go func() {
-		Cron.Start()
-	}()
-
-	select {
-	case <-ctx.Done():
-		wg.Done()
-		closeCtx := Cron.Stop()
-		<-closeCtx.Done()
-	default:
-		wg.Wait()
-	}
+func StopCron() {
+	closeCtx := Cron.Stop()
+	<-closeCtx.Done()
 }

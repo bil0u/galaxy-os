@@ -22,6 +22,7 @@ import (
 var (
 	enableCron   bool
 	enableOAuth2 bool
+	syncCommands bool
 )
 
 var botCmd = &cobra.Command{
@@ -34,6 +35,7 @@ func init() {
 
 	startCmd.Flags().BoolVarP(&enableCron, "cron", "c", false, "Whether to enable cron jobs")
 	startCmd.Flags().BoolVarP(&enableOAuth2, "oauth2", "o", false, "Whether to enable oauth2 server")
+	startCmd.Flags().BoolVarP(&syncCommands, "sync", "s", false, "Sync slash commands to Discord before starting")
 }
 
 var startCmd = &cobra.Command{
@@ -114,6 +116,13 @@ func startBot(cmd *cobra.Command, _ []string) {
 	// Init the features
 	features.Init(*featureSet)
 
+	if syncCommands {
+		client := services.GetClient()
+		if err := features.Manager.SyncCommands(*client, config.Guilds.IDs(development == "true")); err != nil {
+			panic(fmt.Errorf("failed to sync commands: %w", err))
+		}
+	}
+
 	ctx := context.Background()
 
 	if (*client).HasShardManager() {
@@ -127,18 +136,20 @@ func startBot(cmd *cobra.Command, _ []string) {
 	}
 
 	if enableCron {
-		services.StartCron(ctx)
+		services.StartCron()
 	}
 
 	if enableOAuth2 {
-		services.StartOAuth(ctx)
+		services.StartOAuth()
 	}
 
 	defer func() {
+		if enableCron {
+			services.StopCron()
+		}
 		withTimeout, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 		(*client).Close(withTimeout)
-		ctx.Done()
 	}()
 
 	// Wait for signal to shutdown
@@ -149,27 +160,3 @@ func startBot(cmd *cobra.Command, _ []string) {
 	slog.Info("Shutting down bot...")
 }
 
-var syncCmd = &cobra.Command{
-	Use:   "sync",
-	Short: "Sync the discord bot commands",
-	Run:   syncCommands,
-}
-
-func syncCommands(cmd *cobra.Command, _ []string) {
-	featureSet, ok := botFeatures[bot]
-	if !ok {
-		panic(fmt.Errorf("bot %s not found", bot))
-	}
-
-	config.Init(bot)
-
-	services.InitLogger(config.Log.Level, config.Log.Format, config.Log.AddSource)
-	client := services.InitDiscordClient(config.Bot.Token, []cache.Flags{cache.FlagsAll}, []gateway.Intents{gateway.IntentsAll})
-	config.InitGuilds((*client).Rest())
-
-	manager, _ := features.NewManager(
-		features.WithFeatureSet(*featureSet),
-	)
-
-	manager.SyncCommands(*client, config.Guilds.IDs(development == "true"))
-}

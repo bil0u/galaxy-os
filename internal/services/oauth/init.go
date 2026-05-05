@@ -1,7 +1,6 @@
 package oauth
 
 import (
-	"context"
 	"fmt"
 	"net/http"
 	"sync"
@@ -32,24 +31,11 @@ func Init(applicationID snowflake.ID, clientSecret, baseURL string) *oauth2.Clie
 	return Client
 }
 
-func Start(ctx context.Context) {
+func Start() {
+	mux := http.NewServeMux()
+	mux.HandleFunc(routeRoot, rootHandler)
+	mux.HandleFunc(routeAuthorize, authorizeHandler)
+	mux.HandleFunc(routeRedirect, redirectHandler)
 
-	wg := &sync.WaitGroup{}
-	wg.Add(1)
-
-	go func() {
-		mux := http.NewServeMux()
-		mux.HandleFunc(routeRoot, rootHandler)
-		mux.HandleFunc(routeAuthorize, authorizeHandler)
-		mux.HandleFunc(routeRedirect, redirectHandler)
-		http.ListenAndServe(fmt.Sprintf(":%d", exposePort), mux)
-	}()
-
-	select {
-	case <-ctx.Done():
-		wg.Done()
-	default:
-		wg.Wait()
-	}
-
+	go http.ListenAndServe(fmt.Sprintf(":%d", exposePort), mux)
 }

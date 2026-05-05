@@ -54,9 +54,11 @@ func NewBotConfig(cfg *viper.Viper, botName string) (*BotConfig, error) {
 	}
 
 	if cfg != nil {
-		err := cfg.Sub("bot." + botName).Unmarshal(&newCfg)
-
-		if err != nil {
+		botSub := cfg.Sub("bot." + botName)
+		if botSub == nil {
+			return nil, fmt.Errorf("no configuration found for bot %q", botName)
+		}
+		if err := botSub.Unmarshal(&newCfg); err != nil {
 			return nil, fmt.Errorf("failed to unmarshal bot configuration: %w", err)
 		}
 		newCfg.FeaturesDefs = cfg.Sub("features." + botName)

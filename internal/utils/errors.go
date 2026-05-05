@@ -6,9 +6,9 @@ import "fmt"
 type ManyErrors []error
 
 // `Add` adds an error to the slice if it is not nil, and returns true if the error was added.
-func (e ManyErrors) Add(err error) bool {
+func (e *ManyErrors) Add(err error) bool {
 	if err != nil {
-		e = append(e, err)
+		*e = append(*e, err)
 		return true
 	}
 	return false

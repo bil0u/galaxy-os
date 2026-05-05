@@ -192,23 +192,18 @@ func intRespectConstraint(intValue int, constraints []string) (bool, error) {
 	}
 
 	var errs []error
-	for i, possibleAnswer := range constraints {
-		// Check if the answer is a plain number
-		if possibleAnswer == constraints[i] {
-			return true, nil
+	for _, possibleAnswer := range constraints {
+		// Check if the constraint is a plain number
+		plainNumber, err := strconv.Atoi(possibleAnswer)
+		if err == nil {
+			if intValue == plainNumber {
+				return true, nil
+			}
+			errs = append(errs, fmt.Errorf("answer '%d' does not equal '%d'", intValue, plainNumber))
+			continue
 		}
-		// Check if the answer is a comparison operator
-		if strings.HasPrefix(possibleAnswer, ">") {
-			possibleAnswerInt, _ := strconv.Atoi(possibleAnswer[1:])
-			if !(intValue > possibleAnswerInt) {
-				errs = append(errs, fmt.Errorf("answer '%d' is not greater than '%d'", intValue, possibleAnswerInt))
-			}
-		} else if strings.HasPrefix(possibleAnswer, "<") {
-			possibleAnswerInt, _ := strconv.Atoi(possibleAnswer[1:])
-			if !(intValue < possibleAnswerInt) {
-				errs = append(errs, fmt.Errorf("answer '%d' is not lower than '%d'", intValue, possibleAnswerInt))
-			}
-		} else if strings.HasPrefix(possibleAnswer, ">=") {
+		// Check >=/<= before >/< to avoid prefix mismatch
+		if strings.HasPrefix(possibleAnswer, ">=") {
 			possibleAnswerInt, _ := strconv.Atoi(possibleAnswer[2:])
 			if !(intValue >= possibleAnswerInt) {
 				errs = append(errs, fmt.Errorf("answer '%d' is not greater or equal to '%d'", intValue, possibleAnswerInt))
@@ -217,6 +212,16 @@ func intRespectConstraint(intValue int, constraints []string) (bool, error) {
 			possibleAnswerInt, _ := strconv.Atoi(possibleAnswer[2:])
 			if !(intValue <= possibleAnswerInt) {
 				errs = append(errs, fmt.Errorf("answer '%d' is not lower or equal to '%d'", intValue, possibleAnswerInt))
+			}
+		} else if strings.HasPrefix(possibleAnswer, ">") {
+			possibleAnswerInt, _ := strconv.Atoi(possibleAnswer[1:])
+			if !(intValue > possibleAnswerInt) {
+				errs = append(errs, fmt.Errorf("answer '%d' is not greater than '%d'", intValue, possibleAnswerInt))
+			}
+		} else if strings.HasPrefix(possibleAnswer, "<") {
+			possibleAnswerInt, _ := strconv.Atoi(possibleAnswer[1:])
+			if !(intValue < possibleAnswerInt) {
+				errs = append(errs, fmt.Errorf("answer '%d' is not lower than '%d'", intValue, possibleAnswerInt))
 			}
 		}
 

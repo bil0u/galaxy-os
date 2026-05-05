@@ -3,15 +3,17 @@ package oauth
 import (
 	"fmt"
 	"net/http"
+	"sync"
 
 	"github.com/disgoorg/disgo/discord"
 	"github.com/disgoorg/disgo/oauth2"
 )
 
 var (
-	sessions         map[string]oauth2.Session = make(map[string]oauth2.Session)
-	loginTemplate                              = `<button><a href="%s">login</a></button>`
-	loggedInTemplate                           = `"user:<br />%s<br />connections: <br />%s"`
+	sessionsMu       sync.RWMutex
+	sessions         = make(map[string]oauth2.Session)
+	loginTemplate    = `<button><a href="%s">login</a></button>`
+	loggedInTemplate = `"user:<br />%s<br />connections: <br />%s"`
 )
 
 // rootHandler returns a function that handles the root route by checking if the user is logged in or not.
@@ -25,8 +27,9 @@ func rootHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		body = fmt.Sprintf(loginTemplate, routeAuthorize)
 	} else {
-		// Retrieve the session from the sessions map
+		sessionsMu.RLock()
 		session, ok := sessions[cookie.Value]
+		sessionsMu.RUnlock()
 		if ok {
 			// Session found, fetch user data
 			var user *discord.OAuth2User
@@ -100,7 +103,9 @@ func redirectHandler(w http.ResponseWriter, r *http.Request) {
 			writeError(w, "error while starting session", err)
 			return
 		}
+		sessionsMu.Lock()
 		sessions[identifier] = session
+		sessionsMu.Unlock()
 		http.SetCookie(w, &http.Cookie{Name: "session_id", Value: identifier, Path: "/"})
 	}
 	http.Redirect(w, r, routeRoot, http.StatusTemporaryRedirect)

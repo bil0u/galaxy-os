@@ -120,7 +120,7 @@ func DailyMessageJob(guildID snowflake.ID) func() {
 
 		// Send the message
 		_, err = restClient.CreateMessage(config.Channel, discord.NewMessageCreateBuilder().
-			SetContentf(dailyMessageTemplate[discord.Locale(guild.PreferredLocale)], guild.Name).
+			SetContentf(dailyMessageTemplate.Using(discord.Locale(guild.PreferredLocale)), guild.Name).
 			Build(),
 		)
 		if err != nil {

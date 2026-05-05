@@ -7,7 +7,6 @@ import (
 	"sync"
 
 	"github.com/disgoorg/disgo/rest"
-	"github.com/disgoorg/snowflake/v2"
 	"github.com/spf13/viper"
 )
 
@@ -30,24 +29,6 @@ func readLocalConfig(filename, path string) (*viper.Viper, error) {
 		}
 	}
 	return raw, nil
-}
-
-func LocalDefault() *viper.Viper {
-	cfg, err := readLocalConfig("config", ".")
-	if err != nil {
-		slog.Error(err.Error())
-		return nil
-	}
-	return cfg
-}
-
-func LocalGuild(guildID snowflake.ID) *viper.Viper {
-	cfg, err := readLocalConfig(("config." + guildID.String()), ".")
-	if err != nil {
-		slog.Error(err.Error())
-		return nil
-	}
-	return cfg
 }
 
 // `Init` initializes the configuration. It should be called once at the start of the program.

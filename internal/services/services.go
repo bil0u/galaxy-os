@@ -112,8 +112,8 @@ func GetOAuthClient() *oauth2.Client {
 	return oauth.Client
 }
 
-func StartOAuth(ctx context.Context) {
-	oauth.Start(ctx)
+func StartOAuth() {
+	oauth.Start()
 }
 
 // SQL
@@ -142,6 +142,10 @@ func GetCron() *cron.Cron {
 	return cronjobs.Cron
 }
 
-func StartCron(ctx context.Context) {
-	cronjobs.StartCron(ctx)
+func StartCron() {
+	cronjobs.StartCron()
+}
+
+func StopCron() {
+	cronjobs.StopCron()
 }

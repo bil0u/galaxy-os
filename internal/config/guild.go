@@ -32,7 +32,9 @@ func NewGuildConfig(cfg *viper.Viper, botName string) (*GuildConfig, error) {
 	newCfg := &GuildConfig{}
 
 	if cfg != nil {
-		cfg.Unmarshal(newCfg)
+		if err := cfg.Unmarshal(newCfg); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal guild configuration: %w", err)
+		}
 		newCfg.FeaturesDefs = cfg.Sub("features." + botName)
 	}
 

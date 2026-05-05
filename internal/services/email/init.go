@@ -20,7 +20,7 @@ func Init(ctx context.Context) *sesv2.Client {
 			config.WithSharedConfigProfile("serendipe"),
 		)
 		if err != nil {
-			slog.Error("Error loading AWS config: %v", err)
+			slog.Error("Error loading AWS config.", slog.Any("error", err))
 			panic(err)
 		}
 

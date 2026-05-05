@@ -11,10 +11,7 @@ import (
 	"github.com/disgoorg/snowflake/v2"
 )
 
-var (
-	Manager *FeatureManager
-	Enabled []string
-)
+var Manager *FeatureManager
 
 // Init initializes the feature module
 // features should be a list of feature keys as defined in the guild or bot configuration

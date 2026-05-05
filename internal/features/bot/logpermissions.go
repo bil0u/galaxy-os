@@ -40,17 +40,17 @@ func roleFromAppCommandRole(perm discord.ApplicationCommandPermissionRole, guild
 	return discord.Role{}, fmt.Errorf("role with ID %s not found", perm.RoleID.String())
 }
 
-func memberPermissionsFromRoles(guildMember discord.Member, guildRoles []discord.Role) (discord.Permissions, error) {
-	// Fetch the user's roles
+func memberPermissionsFromRoles(guildMember discord.Member, guildRoles []discord.Role) discord.Permissions {
+	var combined discord.Permissions
 	for _, roleID := range guildMember.RoleIDs {
-		// Fetch the role permissions
 		for _, role := range guildRoles {
 			if role.ID == roleID {
-				return role.Permissions, nil
+				combined |= role.Permissions
+				break
 			}
 		}
 	}
-	return 0, fmt.Errorf("user %s not found", guildMember.User.ID.String())
+	return combined
 }
 
 func guildChannelFromAppCommandChannel(perm discord.ApplicationCommandPermissionChannel, guildChannels []discord.GuildChannel) (discord.GuildChannel, error) {
@@ -92,7 +92,7 @@ func checkBotPermissions(guildID snowflake.ID) (discord.Permissions, discord.Per
 				if err != nil {
 					return 0, 0, nil, fmt.Errorf("failed to fetch role permissions for guild %s: %v", guildID.String(), err)
 				}
-				rolePermissions = role.Permissions
+				rolePermissions |= role.Permissions
 			case discord.ApplicationCommandPermissionTypeUser:
 				acpUser := perm.(discord.ApplicationCommandPermissionUser)
 				// Fetch the user permissions
@@ -100,10 +100,7 @@ func checkBotPermissions(guildID snowflake.ID) (discord.Permissions, discord.Per
 				if err != nil {
 					return 0, 0, nil, fmt.Errorf("failed to fetch guild member for guild %s: %v", guildID.String(), err)
 				}
-				userPermissions, err = memberPermissionsFromRoles(*guildMember, guildRoles)
-				if err != nil {
-					return 0, 0, nil, fmt.Errorf("failed to fetch user permissions for guild %s: %v", guildID.String(), err)
-				}
+				userPermissions = memberPermissionsFromRoles(*guildMember, guildRoles)
 
 			case discord.ApplicationCommandPermissionTypeChannel:
 				// Fetch the channel permissions

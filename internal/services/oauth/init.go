@@ -10,7 +10,7 @@ import (
 )
 
 var (
-	Client         *oauth2.Client
+	oauthClient    oauth2.Client
 	serverBaseURL  string
 	exposePort     = 42000
 	routeRoot      = "/oauth2"
@@ -18,12 +18,15 @@ var (
 	routeRedirect  = "/oauth2/redirect"
 )
 
-func Init(applicationID snowflake.ID, clientSecret, baseURL string) *oauth2.Client {
+func Init(applicationID snowflake.ID, clientSecret, baseURL string) oauth2.Client {
 	serverBaseURL = baseURL
 	clientOpts := oauth2.WithRestClientConfigOpts(rest.WithHTTPClient(http.DefaultClient))
-	clt := oauth2.New(applicationID, clientSecret, clientOpts)
-	Client = &clt
-	return Client
+	oauthClient = oauth2.New(applicationID, clientSecret, clientOpts)
+	return oauthClient
+}
+
+func Client() oauth2.Client {
+	return oauthClient
 }
 
 func Start() {

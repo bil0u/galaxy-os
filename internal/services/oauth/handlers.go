@@ -33,7 +33,7 @@ func rootHandler(w http.ResponseWriter, r *http.Request) {
 		if ok {
 			// Session found, fetch user data
 			var user *discord.OAuth2User
-			user, err = (*Client).GetUser(session)
+			user, err = oauthClient.GetUser(session)
 			if err != nil {
 				writeError(w, "error while getting user data", err)
 				return
@@ -41,7 +41,7 @@ func rootHandler(w http.ResponseWriter, r *http.Request) {
 
 			// Fetch connections data
 			var connections []discord.Connection
-			connections, err = (*Client).GetConnections(session)
+			connections, err = oauthClient.GetConnections(session)
 			if err != nil {
 				writeError(w, "error while getting connections data", err)
 				return
@@ -82,7 +82,7 @@ func authorizeHandler(w http.ResponseWriter, r *http.Request) {
 			discord.OAuth2ScopeGDMJoin,
 		},
 	}
-	http.Redirect(w, r, (*Client).GenerateAuthorizationURL(params), http.StatusSeeOther)
+	http.Redirect(w, r, oauthClient.GenerateAuthorizationURL(params), http.StatusSeeOther)
 }
 
 // redirectHandler handles the OAuth2 redirect flow by starting a new session with the authorization code and state.
@@ -98,7 +98,7 @@ func redirectHandler(w http.ResponseWriter, r *http.Request) {
 	// We can start a new session and store it in the sessions map
 	if code != "" && state != "" {
 		identifier := randStr(32)
-		session, _, err := (*Client).StartSession(code, state)
+		session, _, err := oauthClient.StartSession(code, state)
 		if err != nil {
 			writeError(w, "error while starting session", err)
 			return

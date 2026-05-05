@@ -21,7 +21,7 @@ type BotConfig struct {
 	FeaturesDefs  *viper.Viper `mapstructure:"-"`
 }
 
-// `validate` validates the bot configuration
+// `validate` validates the required bot configuration
 func (config BotConfig) validate() error {
 	var errs []error
 
@@ -33,8 +33,20 @@ func (config BotConfig) validate() error {
 		errs = append(errs, fmt.Errorf("bot.application_id must be provided"))
 	}
 
-	if config.BaseURL == "" || config.ClientSecret == "" {
-		errs = append(errs, fmt.Errorf("bot.base_url and bot.client_secret must be provided"))
+	return errors.Join(errs...)
+}
+
+// ValidateOAuth checks that OAuth2-specific fields are present.
+// Should only be called when --oauth2 is enabled.
+func (config BotConfig) ValidateOAuth() error {
+	var errs []error
+
+	if config.ClientSecret == "" {
+		errs = append(errs, fmt.Errorf("bot.client_secret is required for oauth2"))
+	}
+
+	if config.BaseURL == "" {
+		errs = append(errs, fmt.Errorf("bot.base_url is required for oauth2"))
 	}
 
 	return errors.Join(errs...)

@@ -4,9 +4,13 @@ import (
 	"github.com/disgoorg/paginator"
 )
 
-var Paginator *paginator.Manager
+var pgn *paginator.Manager
 
 func InitPaginator() *paginator.Manager {
-	Paginator = paginator.New()
-	return Paginator
+	pgn = paginator.New()
+	return pgn
+}
+
+func Paginator() *paginator.Manager {
+	return pgn
 }

@@ -2,7 +2,6 @@ package bot_features
 
 import (
 	"github.com/bil0u/galaxy-os/internal/features"
-	"github.com/bil0u/galaxy-os/internal/services"
 	"github.com/bil0u/galaxy-os/internal/utils"
 	"github.com/disgoorg/disgo/discord"
 	"github.com/disgoorg/disgo/handler"
@@ -19,6 +18,7 @@ func (f TestConfig) Validate() error {
 
 var TestFeature = features.New[TestConfig](
 	setupTestFeature,
+	features.WithType(features.BotFeature),
 	features.WithLocalizedName(discord.LocaleFrench, "Test"),
 	features.WithDescription(utils.LocalizedString{
 		discord.LocaleEnglishUS: "Testing feature, do not use",
@@ -27,12 +27,10 @@ var TestFeature = features.New[TestConfig](
 	features.WithCommandsToSync(testCommand),
 )
 
-func setupTestFeature() error {
-	router := services.GetRouter()
-
-	router.Command("/test", TestHandler)
-	router.Autocomplete("/test", TestAutocompleteHandler)
-	router.Component("/test-button", TestComponent)
+func setupTestFeature(deps features.SetupDeps) error {
+	deps.Router.Command("/test", TestHandler)
+	deps.Router.Autocomplete("/test", TestAutocompleteHandler)
+	deps.Router.Component("/test-button", TestComponent)
 	return nil
 }
 
@@ -81,7 +79,6 @@ func TestHandler(e *handler.CommandEvent) error {
 			discord.LocaleEnglishUS: "Test command. Choice: %s",
 			discord.LocaleFrench:    "Commande de test. Choix: %s",
 		}.Using(e.Locale()), data.String("choice")).
-		// SetContentf, data.String("choice")).
 		AddActionRow(discord.NewPrimaryButton("test", "/test-button")).
 		Build(),
 	)

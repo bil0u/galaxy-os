@@ -12,7 +12,7 @@ var Manager *FeatureManager
 
 // Init initializes the feature module.
 // Should be called after config.Init(), config.InitGuilds(), and service initialization.
-func Init(fs FeatureSet) error {
+func Init(fs FeatureSet, deps SetupDeps) error {
 	var err error
 
 	Manager, err = NewManager(
@@ -24,7 +24,7 @@ func Init(fs FeatureSet) error {
 		return fmt.Errorf("creating feature manager: %w", err)
 	}
 
-	if err := Manager.SetupFeatures(); err != nil {
+	if err := Manager.SetupFeatures(deps); err != nil {
 		return fmt.Errorf("setting up features: %w", err)
 	}
 

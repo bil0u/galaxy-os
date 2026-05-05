@@ -8,7 +8,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/sesv2"
 )
 
-var Client *sesv2.Client
+var client *sesv2.Client
 
 func Init(ctx context.Context) (*sesv2.Client, error) {
 	cfg, err := config.LoadDefaultConfig(ctx,
@@ -19,6 +19,10 @@ func Init(ctx context.Context) (*sesv2.Client, error) {
 		return nil, fmt.Errorf("loading aws config: %w", err)
 	}
 
-	Client = sesv2.NewFromConfig(cfg)
-	return Client, nil
+	client = sesv2.NewFromConfig(cfg)
+	return client, nil
+}
+
+func Client() *sesv2.Client {
+	return client
 }

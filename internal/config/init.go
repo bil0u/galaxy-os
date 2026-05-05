@@ -9,13 +9,6 @@ import (
 	"github.com/spf13/viper"
 )
 
-var (
-	GlobalCfg *Global
-	LogCfg    *Log
-	BotCfg    *Bot
-	GuildsCfg *GuildMap
-)
-
 func readLocalConfig(filename, path string) (*viper.Viper, error) {
 	raw := viper.New()
 	raw.SetConfigName(filename)
@@ -29,41 +22,42 @@ func readLocalConfig(filename, path string) (*viper.Viper, error) {
 	return raw, nil
 }
 
-// Init initializes the configuration. It should be called once at the start of the program.
-func Init(botName string) error {
+// Init initializes the configuration and returns all config values.
+func Init(botName string) (*Global, *Log, *Bot, error) {
 	cfg, err := readLocalConfig("config", ".")
 	if err != nil {
-		return err
+		return nil, nil, nil, err
 	}
 
-	GlobalCfg, err = NewGlobal(cfg)
+	globalCfg, err := NewGlobal(cfg)
 	if err != nil {
-		return err
+		return nil, nil, nil, err
 	}
 
-	LogCfg, err = NewLog(cfg)
+	logCfg, err := NewLog(cfg)
 	if err != nil {
-		return err
+		return nil, nil, nil, err
 	}
 
-	BotCfg, err = NewBot(cfg, botName)
+	botCfg, err := NewBot(cfg, botName)
 	if err != nil {
-		return err
+		return nil, nil, nil, err
 	}
 
-	GuildsCfg = &GuildMap{}
-	return nil
+	return globalCfg, logCfg, botCfg, nil
 }
 
-// InitGuilds initializes the guilds configuration. It should be called after Init.
-func InitGuilds(_ context.Context, client rest.Rest) error {
+// InitGuilds queries the Discord API for joined guilds and reads per-guild config files.
+func InitGuilds(ctx context.Context, client rest.Rest, botName string) (*GuildMap, error) {
 	botGuilds, err := client.GetCurrentUserGuilds("", 0, 0, 0, true)
 	if err != nil {
-		return fmt.Errorf("fetching bot guilds: %w", err)
+		return nil, fmt.Errorf("fetching bot guilds: %w", err)
 	}
 
+	guilds := &GuildMap{}
+
 	if len(botGuilds) == 0 {
-		return nil
+		return guilds, nil
 	}
 
 	for _, guild := range botGuilds {
@@ -72,15 +66,15 @@ func InitGuilds(_ context.Context, client rest.Rest) error {
 			cfg = nil
 			slog.Error(err.Error())
 		}
-		config, _ := NewGuild(cfg, BotCfg.Name)
+		config, _ := NewGuild(cfg, botName)
 
-		err = GuildsCfg.Set(guild.ID, config)
+		err = guilds.Set(guild.ID, config)
 		if err != nil {
 			slog.Error(err.Error())
 		}
 	}
 
-	return nil
+	return guilds, nil
 }
 
 type config interface {

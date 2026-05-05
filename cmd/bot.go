@@ -87,32 +87,34 @@ func startBot(cmd *cobra.Command, _ []string) error {
 		return fmt.Errorf("no features defined for bot %q", bot)
 	}
 
-	if err := config.Init(bot); err != nil {
+	globalCfg, logCfg, botCfg, err := config.Init(bot)
+	if err != nil {
 		return fmt.Errorf("initializing config: %w", err)
 	}
 
-	config.GlobalCfg.Development = development == "true"
-	config.GlobalCfg.Version = version
-	config.GlobalCfg.Commit = commit
+	globalCfg.Development = development == "true"
+	globalCfg.Version = version
+	globalCfg.Commit = commit
 
-	if _, err := services.InitLogger(config.LogCfg.Level, config.LogCfg.Format, config.LogCfg.AddSource); err != nil {
+	if _, err := services.InitLogger(logCfg.Level, logCfg.Format, logCfg.AddSource); err != nil {
 		return fmt.Errorf("initializing logger: %w", err)
 	}
 
-	if _, err := services.InitDiscordClient(config.BotCfg.Token, def.cacheFlags, def.intents); err != nil {
+	if _, err := services.InitDiscordClient(botCfg.Token, def.cacheFlags, def.intents); err != nil {
 		return fmt.Errorf("initializing discord client: %w", err)
 	}
 
 	ctx := context.Background()
 
-	if err := config.InitGuilds(ctx, services.RestClient()); err != nil {
+	guilds, err := config.InitGuilds(ctx, services.RestClient(), bot)
+	if err != nil {
 		return fmt.Errorf("initializing guilds config: %w", err)
 	}
 
-	slog.Debug(fmt.Sprintf("Global configuration: %+v", config.GlobalCfg))
-	slog.Debug(fmt.Sprintf("Bot configuration: %++v", config.BotCfg))
-	slog.Debug(fmt.Sprintf("Log configuration: %+v", config.LogCfg))
-	slog.Debug(fmt.Sprintf("Guilds configuration: %+v", config.GuildsCfg))
+	slog.Debug(fmt.Sprintf("Global configuration: %+v", globalCfg))
+	slog.Debug(fmt.Sprintf("Bot configuration: %++v", botCfg))
+	slog.Debug(fmt.Sprintf("Log configuration: %+v", logCfg))
+	slog.Debug(fmt.Sprintf("Guilds configuration: %+v", guilds))
 
 	client := services.Client()
 
@@ -124,13 +126,13 @@ func startBot(cmd *cobra.Command, _ []string) error {
 	}
 
 	if enableOAuth2 {
-		if err := config.BotCfg.ValidateOAuth(); err != nil {
+		if err := botCfg.ValidateOAuth(); err != nil {
 			return fmt.Errorf("oauth2 config: %w", err)
 		}
-		services.InitOAuth(config.BotCfg.ApplicationID, config.BotCfg.ClientSecret, config.BotCfg.BaseURL)
+		services.InitOAuth(botCfg.ApplicationID, botCfg.ClientSecret, botCfg.BaseURL)
 	}
 
-	registry := features.NewRegistry(*def.features, config.BotCfg, config.GuildsCfg)
+	registry := features.NewRegistry(*def.features, botCfg, guilds)
 
 	deps := features.SetupDeps{
 		Bot: features.BotServices{
@@ -142,9 +144,9 @@ func startBot(cmd *cobra.Command, _ []string) error {
 			Cron: services.Cron(),
 		},
 		Configs: features.Configs{
-			Bot:      config.BotCfg,
-			Guilds:   config.GuildsCfg,
-			Global:   config.GlobalCfg,
+			Bot:      botCfg,
+			Guilds:   guilds,
+			Global:   globalCfg,
 			Features: registry,
 		},
 	}
@@ -154,7 +156,7 @@ func startBot(cmd *cobra.Command, _ []string) error {
 	}
 
 	if syncCommands {
-		if err := features.SyncCommands(*def.features, client, config.GuildsCfg.IDs(development == "true")); err != nil {
+		if err := features.SyncCommands(*def.features, client, guilds.IDs(development == "true")); err != nil {
 			return fmt.Errorf("syncing commands: %w", err)
 		}
 	}

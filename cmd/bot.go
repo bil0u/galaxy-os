@@ -17,6 +17,7 @@ import (
 	"github.com/disgoorg/disgo"
 	disbot "github.com/disgoorg/disgo/bot"
 	"github.com/disgoorg/disgo/cache"
+	"github.com/disgoorg/disgo/events"
 	"github.com/disgoorg/disgo/gateway"
 	"github.com/disgoorg/disgo/handler"
 	"github.com/disgoorg/paginator"
@@ -104,6 +105,8 @@ func startBot(cmd *cobra.Command, _ []string) error {
 		return fmt.Errorf("initializing logger: %w", err)
 	}
 
+	botLogger := slog.Default().With("bot", bot)
+
 	client, err := disgo.New(botCfg.Token,
 		disbot.WithCacheConfigOpts(cache.WithCaches(def.cacheFlags)),
 		disbot.WithGatewayConfigOpts(
@@ -131,6 +134,10 @@ func startBot(cmd *cobra.Command, _ []string) error {
 	pgn := paginator.New()
 	client.AddEventListeners(router, pgn)
 
+	client.AddEventListeners(disbot.NewListenerFunc(func(_ *events.Resumed) {
+		botLogger.Info("gateway reconnected")
+	}))
+
 	if enableCron {
 		services.InitCron()
 	}
@@ -148,7 +155,7 @@ func startBot(cmd *cobra.Command, _ []string) error {
 		Bot: features.BotServices{
 			Client: client,
 			Router: router,
-			Logger: slog.Default(),
+			Logger: botLogger,
 		},
 		Shared: features.SharedServices{
 			Cron: services.Cron(),

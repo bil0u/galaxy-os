@@ -11,11 +11,11 @@ import (
 
 var client bot.Client
 
-func InitClient(token string, caches []cache.Flags, intents []gateway.Intents) (bot.Client, error) {
+func InitClient(token string, cacheFlags cache.Flags, intents gateway.Intents) (bot.Client, error) {
 	configOpts := []bot.ConfigOpt{
-		bot.WithCacheConfigOpts(cache.WithCaches(caches...)),
+		bot.WithCacheConfigOpts(cache.WithCaches(cacheFlags)),
 		bot.WithGatewayConfigOpts(
-			gateway.WithIntents(intents...),
+			gateway.WithIntents(intents),
 			gateway.WithCompress(true),
 		),
 	}

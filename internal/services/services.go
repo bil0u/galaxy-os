@@ -25,8 +25,8 @@ import (
 
 // DISCORD
 
-func InitDiscordClient(token string, caches []cache.Flags, intents []gateway.Intents) (bot.Client, error) {
-	return discord.InitClient(token, caches, intents)
+func InitDiscordClient(token string, cacheFlags cache.Flags, intents gateway.Intents) (bot.Client, error) {
+	return discord.InitClient(token, cacheFlags, intents)
 }
 
 func Client() bot.Client {

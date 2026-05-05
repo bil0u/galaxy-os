@@ -2,45 +2,39 @@ package logger
 
 import (
 	"bytes"
+	"fmt"
 	"log/slog"
-	"os"
 	"sync"
 )
 
-var (
-	Logger *slog.Logger
-)
+var Logger *slog.Logger
 
-func Init(level slog.Level, format string, addSource bool) *slog.Logger {
-	sync.OnceFunc(func() {
-		var logger slog.Handler
-		switch format {
-		case "text":
-			logger = newHandler(&slog.HandlerOptions{
-				Level:     level,
-				AddSource: addSource,
-			})
-		case "json":
-			logger = newHandler(&slog.HandlerOptions{
-				Level:     level,
-				AddSource: addSource,
-				ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
-					if a.Key == "nothing" {
-						return slog.Attr{}
-					}
-					return a
-				},
-			})
-			logger.WithGroup("data")
-		default:
-			slog.Error("Unknown log format", slog.String("format", format))
-			os.Exit(-1)
-		}
-		Logger = slog.New(logger)
-		slog.SetDefault(Logger)
-	})()
-
-	return Logger
+func Init(level slog.Level, format string, addSource bool) (*slog.Logger, error) {
+	var handler slog.Handler
+	switch format {
+	case "text":
+		handler = newHandler(&slog.HandlerOptions{
+			Level:     level,
+			AddSource: addSource,
+		})
+	case "json":
+		handler = newHandler(&slog.HandlerOptions{
+			Level:     level,
+			AddSource: addSource,
+			ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
+				if a.Key == "nothing" {
+					return slog.Attr{}
+				}
+				return a
+			},
+		})
+		handler.WithGroup("data")
+	default:
+		return nil, fmt.Errorf("unknown log format %q", format)
+	}
+	Logger = slog.New(handler)
+	slog.SetDefault(Logger)
+	return Logger, nil
 }
 
 func newHandler(opts *slog.HandlerOptions) *LogHandler {

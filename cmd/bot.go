@@ -41,7 +41,7 @@ func init() {
 var startCmd = &cobra.Command{
 	Use:   "start",
 	Short: "Start the discord bot",
-	Run:   startBot,
+	RunE:  startBot,
 }
 
 var botFeatures = map[string]*features.FeatureSet{
@@ -68,33 +68,41 @@ var botFeatures = map[string]*features.FeatureSet{
 	),
 }
 
-func startBot(cmd *cobra.Command, _ []string) {
-
+func startBot(cmd *cobra.Command, _ []string) error {
 	featureSet, ok := botFeatures[bot]
 	if !ok {
-		panic(fmt.Errorf("bot %s not found", bot))
+		return fmt.Errorf("bot %q not found", bot)
 	}
 	if featureSet == nil {
-		panic(fmt.Errorf("no features found for bot %s", bot))
+		return fmt.Errorf("no features found for bot %q", bot)
 	}
 
-	config.Init(bot)
+	if err := config.Init(bot); err != nil {
+		return fmt.Errorf("initializing config: %w", err)
+	}
 
 	config.Global.Development = development == "true"
 	config.Global.Version = version
 	config.Global.Commit = commit
 
-	// // Init the services
-	services.InitLogger(config.Log.Level, config.Log.Format, config.Log.AddSource)
-
-	services.InitDiscordClient(config.Bot.Token, []cache.Flags{cache.FlagsAll}, []gateway.Intents{gateway.IntentsAll})
-	config.InitGuilds(services.GetRestClient())
-
-	if config.Guilds.Count() > 0 {
-		services.InitDiscordShardedClient(config.Bot.Token, config.Guilds.Count(), []cache.Flags{cache.FlagsAll}, []gateway.Intents{gateway.IntentsAll})
+	if _, err := services.InitLogger(config.Log.Level, config.Log.Format, config.Log.AddSource); err != nil {
+		return fmt.Errorf("initializing logger: %w", err)
 	}
 
-	// Logging all configs in debug mode
+	if _, err := services.InitDiscordClient(config.Bot.Token, []cache.Flags{cache.FlagsAll}, []gateway.Intents{gateway.IntentsAll}); err != nil {
+		return fmt.Errorf("initializing discord client: %w", err)
+	}
+
+	if err := config.InitGuilds(services.GetRestClient()); err != nil {
+		return fmt.Errorf("initializing guilds config: %w", err)
+	}
+
+	if config.Guilds.Count() > 0 {
+		if _, err := services.InitDiscordShardedClient(config.Bot.Token, config.Guilds.Count(), []cache.Flags{cache.FlagsAll}, []gateway.Intents{gateway.IntentsAll}); err != nil {
+			return fmt.Errorf("initializing sharded discord client: %w", err)
+		}
+	}
+
 	slog.Debug(fmt.Sprintf("Global configuration: %+v", config.Global))
 	slog.Debug(fmt.Sprintf("Bot configuration: %++v", config.Bot))
 	slog.Debug(fmt.Sprintf("Log configuration: %+v", config.Log))
@@ -113,13 +121,14 @@ func startBot(cmd *cobra.Command, _ []string) {
 		services.InitOAuth(config.Bot.ApplicationID, config.Bot.ClientSecret, config.Bot.BaseURL)
 	}
 
-	// Init the features
-	features.Init(*featureSet)
+	if err := features.Init(*featureSet); err != nil {
+		return fmt.Errorf("initializing features: %w", err)
+	}
 
 	if syncCommands {
 		client := services.GetClient()
 		if err := features.Manager.SyncCommands(*client, config.Guilds.IDs(development == "true")); err != nil {
-			panic(fmt.Errorf("failed to sync commands: %w", err))
+			return fmt.Errorf("syncing commands: %w", err)
 		}
 	}
 
@@ -127,11 +136,11 @@ func startBot(cmd *cobra.Command, _ []string) {
 
 	if (*client).HasShardManager() {
 		if err := (*client).OpenShardManager(ctx); err != nil {
-			panic(fmt.Errorf("failed to open gateway through shard manager: %w", err))
+			return fmt.Errorf("opening gateway through shard manager: %w", err)
 		}
 	} else {
 		if err := (*client).OpenGateway(ctx); err != nil {
-			panic(fmt.Errorf("failed to open gateway: %w", err))
+			return fmt.Errorf("opening gateway: %w", err)
 		}
 	}
 
@@ -152,11 +161,10 @@ func startBot(cmd *cobra.Command, _ []string) {
 		(*client).Close(withTimeout)
 	}()
 
-	// Wait for signal to shutdown
 	slog.Info("----- Bot is running 🚀 Press CTRL-C to exit -----")
 	s := make(chan os.Signal, 1)
 	signal.Notify(s, syscall.SIGINT, syscall.SIGTERM)
 	<-s
 	slog.Info("Shutting down bot...")
+	return nil
 }
-

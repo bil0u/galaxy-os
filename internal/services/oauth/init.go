@@ -3,7 +3,6 @@ package oauth
 import (
 	"fmt"
 	"net/http"
-	"sync"
 
 	"github.com/disgoorg/disgo/oauth2"
 	"github.com/disgoorg/disgo/rest"
@@ -20,14 +19,10 @@ var (
 )
 
 func Init(applicationID snowflake.ID, clientSecret, baseURL string) *oauth2.Client {
-	sync.OnceFunc(func() {
-		// Creating the OAuth2 client
-		serverBaseURL = baseURL
-		clientOpts := oauth2.WithRestClientConfigOpts(rest.WithHTTPClient(http.DefaultClient))
-		clt := oauth2.New(applicationID, clientSecret, clientOpts)
-		Client = &clt
-	})()
-
+	serverBaseURL = baseURL
+	clientOpts := oauth2.WithRestClientConfigOpts(rest.WithHTTPClient(http.DefaultClient))
+	clt := oauth2.New(applicationID, clientSecret, clientOpts)
+	Client = &clt
 	return Client
 }
 

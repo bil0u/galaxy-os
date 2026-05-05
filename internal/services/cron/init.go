@@ -1,22 +1,15 @@
 package cron
 
 import (
-	"sync"
-
 	"github.com/robfig/cron/v3"
 )
 
-var (
-	Cron *cron.Cron
-)
+var Cron *cron.Cron
 
 func InitCron() *cron.Cron {
-	sync.OnceFunc(func() {
-		Cron = cron.New(cron.WithLogger(cronLogger{}), cron.WithChain(
-			cron.Recover(cron.DefaultLogger),
-		))
-	})()
-
+	Cron = cron.New(cron.WithLogger(cronLogger{}), cron.WithChain(
+		cron.Recover(cron.DefaultLogger),
+	))
 	return Cron
 }
 

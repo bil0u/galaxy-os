@@ -42,7 +42,7 @@ func GetRestClient() rest.Rest {
 
 // - Client
 
-func InitDiscordClient(token string, caches []cache.Flags, intents []gateway.Intents) *bot.Client {
+func InitDiscordClient(token string, caches []cache.Flags, intents []gateway.Intents) (*bot.Client, error) {
 	return discord.InitClient(token, caches, intents)
 }
 
@@ -52,7 +52,7 @@ func GetDiscordClient() *bot.Client {
 
 // - ShardedClient
 
-func InitDiscordShardedClient(token string, shardCount int, caches []cache.Flags, intents []gateway.Intents) *bot.Client {
+func InitDiscordShardedClient(token string, shardCount int, caches []cache.Flags, intents []gateway.Intents) (*bot.Client, error) {
 	return discord.InitShardedClient(token, shardCount, caches, intents)
 }
 
@@ -84,7 +84,7 @@ func GetRouter() *handler.Mux {
 
 // EMAIL
 
-func InitEmail(ctx context.Context) *sesv2.Client {
+func InitEmail(ctx context.Context) (*sesv2.Client, error) {
 	return email.Init(ctx)
 }
 
@@ -94,7 +94,7 @@ func GetEmailClient() *sesv2.Client {
 
 // LOGGER
 
-func InitLogger(level slog.Level, format string, addSource bool) *slog.Logger {
+func InitLogger(level slog.Level, format string, addSource bool) (*slog.Logger, error) {
 	return logger.Init(level, format, addSource)
 }
 
@@ -118,14 +118,8 @@ func StartOAuth() {
 
 // SQL
 
-func InitSQL(ctx context.Context, pgURL string) *pgxpool.Pool {
-	pool, err := sql.Init(ctx, pgURL)
-	if err != nil {
-		slog.Error("Failed to initialize SQL pool", slog.Any("error", err))
-		panic(err)
-	}
-
-	return pool
+func InitSQL(ctx context.Context, pgURL string) (*pgxpool.Pool, error) {
+	return sql.Init(ctx, pgURL)
 }
 
 func GetPool() *pgxpool.Pool {

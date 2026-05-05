@@ -3,8 +3,6 @@ package config
 import (
 	"fmt"
 	"log/slog"
-	"os"
-	"sync"
 
 	"github.com/disgoorg/disgo/rest"
 	"github.com/spf13/viper"
@@ -24,81 +22,64 @@ func readLocalConfig(filename, path string) (*viper.Viper, error) {
 	if err := raw.ReadInConfig(); err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
 			return nil, fmt.Errorf("config file not found: %w", err)
-		} else {
-			return nil, fmt.Errorf("config file found but another error was produced: %w", err)
 		}
+		return nil, fmt.Errorf("reading config file: %w", err)
 	}
 	return raw, nil
 }
 
-// `Init` initializes the configuration. It should be called once at the start of the program.
-func Init(botName string) {
-	sync.OnceFunc(func() {
-		var err error
+// Init initializes the configuration. It should be called once at the start of the program.
+func Init(botName string) error {
+	cfg, err := readLocalConfig("config", ".")
+	if err != nil {
+		return err
+	}
 
-		// Fetching the global configuration using the default local file
-		cfg, err := readLocalConfig("config", ".")
-		if err != nil {
-			slog.Error(err.Error())
-			os.Exit(-1)
-		}
+	Global, err = NewGlobalConfig(cfg)
+	if err != nil {
+		return err
+	}
 
-		// Instantiating the global, log and bot configurations
-		Global, err = NewGlobalConfig(cfg)
-		if err != nil {
-			slog.Error(err.Error())
-			os.Exit(-1)
-		}
+	Log, err = NewLogConfig(cfg)
+	if err != nil {
+		return err
+	}
 
-		Log, err = NewLogConfig(cfg)
-		if err != nil {
-			slog.Error(err.Error())
-			os.Exit(-1)
-		}
+	Bot, err = NewBotConfig(cfg, botName)
+	if err != nil {
+		return err
+	}
 
-		Bot, err = NewBotConfig(cfg, botName)
-		if err != nil {
-			slog.Error(err.Error())
-			os.Exit(-1)
-		}
-
-		// Empty guilds configuration for future use
-		Guilds = &GuildsConfigs{}
-
-	})()
+	Guilds = &GuildsConfigs{}
+	return nil
 }
 
-// `InitGuilds` initializes the guilds configuration. It should be called after `Init`.
-func InitGuilds(client rest.Rest) {
-	sync.OnceFunc(func() {
+// InitGuilds initializes the guilds configuration. It should be called after Init.
+func InitGuilds(client rest.Rest) error {
+	botGuilds, err := client.GetCurrentUserGuilds("", 0, 0, 0, true)
+	if err != nil {
+		return fmt.Errorf("fetching bot guilds: %w", err)
+	}
 
-		// Fetching each guild the bot is in
-		botGuilds, err := client.GetCurrentUserGuilds("", 0, 0, 0, true)
+	if len(botGuilds) == 0 {
+		return nil
+	}
+
+	for _, guild := range botGuilds {
+		cfg, err := readLocalConfig(("config." + guild.ID.String()), ".")
 		if err != nil {
-			slog.Error("Failed to fetch bot guilds", slog.Any("err", err))
-			os.Exit(-1)
+			cfg = nil
+			slog.Error(err.Error())
 		}
+		config, _ := NewGuildConfig(cfg, Bot.Name)
 
-		if len(botGuilds) == 0 {
-			return
+		err = Guilds.Set(guild.ID, config)
+		if err != nil {
+			slog.Error(err.Error())
 		}
+	}
 
-		for _, guild := range botGuilds {
-			// Fetching the guild configuration using the default local file if any, ignoring errors
-			cfg, err := readLocalConfig(("config." + guild.ID.String()), ".")
-			if err != nil {
-				cfg = nil
-				slog.Error(err.Error())
-			}
-			config, _ := NewGuildConfig(cfg, Bot.Name)
-
-			err = Guilds.Set(guild.ID, config)
-			if err != nil {
-				slog.Error(err.Error())
-			}
-		}
-
-	})()
+	return nil
 }
 
 type config interface {

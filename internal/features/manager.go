@@ -14,32 +14,26 @@ import (
 	"github.com/spf13/viper"
 )
 
-// `FeatureManager` manages a feature set.
-// It allows to get feature configurations for a specific guild, and to sync commands to the Discord API
-// It also allows to setup the features
-// It should be created with a feature set, a bot configuration and a guilds configuration using the `NewManager` function
-type FeatureManager struct {
-	features      FeatureSet
+// Manager manages a feature set.
+type Manager struct {
+	features      Set
 	botConfig     *config.Bot
 	guildsConfigs *config.GuildMap
 }
 
-// `getFeaturesDefs` returns the corresponding features definitions for a specific guild.
-// If the guild ID is 0, it returns the bot features
-func (fm *FeatureManager) getFeaturesDefs(guildID snowflake.ID) []*Feature {
+func (fm *Manager) getFeaturesDefs(guildID snowflake.ID) []*Feature {
 	if guildID == 0 {
 		return fm.features.Bot()
 	}
 	return fm.features.Guild()
 }
 
-// `guildFeaturesRaw` returns the raw features configurations for a specific guild
-func (manager *FeatureManager) guildFeaturesRaw(guildID snowflake.ID) *viper.Viper {
+func (m *Manager) guildFeaturesRaw(guildID snowflake.ID) *viper.Viper {
 	if guildID == 0 {
-		return manager.botConfig.FeaturesDefs
+		return m.botConfig.FeaturesDefs
 	}
 
-	config := manager.guildsConfigs.Get(guildID)
+	config := m.guildsConfigs.Get(guildID)
 	if config == nil {
 		return nil
 	}
@@ -47,10 +41,10 @@ func (manager *FeatureManager) guildFeaturesRaw(guildID snowflake.ID) *viper.Vip
 	return config.FeaturesDefs
 }
 
-// `ConfigRaw` returns the raw feature configuration for a specific guild and feature key
-func (manager *FeatureManager) ConfigRaw(guildID snowflake.ID, featureKey string) (*viper.Viper, error) {
+// ConfigRaw returns the raw feature configuration for a specific guild and feature key.
+func (m *Manager) ConfigRaw(guildID snowflake.ID, featureKey string) (*viper.Viper, error) {
 	slog.Debug(fmt.Sprintf("Getting feature configuration for guild '%d' and feature '%s'", guildID, featureKey))
-	guildFeatures := manager.guildFeaturesRaw(guildID)
+	guildFeatures := m.guildFeaturesRaw(guildID)
 	if guildFeatures == nil {
 		return nil, fmt.Errorf("no feature config exists for guild '%d'", guildID)
 	}
@@ -61,17 +55,17 @@ func (manager *FeatureManager) ConfigRaw(guildID snowflake.ID, featureKey string
 	return guildFeatures.Sub(featureKey), nil
 }
 
-// `Config` returns a new feature configuration for a specific guild and feature, loading data from the configuration
-func (fm *FeatureManager) Config(guildID snowflake.ID, featureKey string) (FeatureConfig, error) {
-	feature := fm.features.WithKey(featureKey)
+// FeatureConfig returns a new feature configuration for a specific guild and feature key.
+func (m *Manager) FeatureConfig(guildID snowflake.ID, featureKey string) (Config, error) {
+	feature := m.features.WithKey(featureKey)
 	if feature == nil {
 		return nil, fmt.Errorf("feature not found in the feature set")
 	}
-	cfg, err := fm.ConfigRaw(guildID, featureKey)
+	cfg, err := m.ConfigRaw(guildID, featureKey)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get feature configuration: %w", err)
 	}
-	newCfg := reflect.Zero(feature.cfgType).Interface().(FeatureConfig)
+	newCfg := reflect.Zero(feature.cfgType).Interface().(Config)
 	if err := cfg.Unmarshal(&newCfg); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal feature configuration: %w", err)
 	}
@@ -79,21 +73,20 @@ func (fm *FeatureManager) Config(guildID snowflake.ID, featureKey string) (Featu
 	return featureConfig, featureConfig.Validate()
 }
 
-// `ConfigFor` tries to get a feature configuration for a specific guild and type
-// type should be reflected from a FeatureConfig implementation
-func (fm *FeatureManager) ConfigFor(guildID snowflake.ID, cfgType reflect.Type) (FeatureConfig, error) {
-	for _, f := range fm.features {
+// FeatureConfigFor tries to get a feature configuration for a specific guild and type.
+func (m *Manager) FeatureConfigFor(guildID snowflake.ID, cfgType reflect.Type) (Config, error) {
+	for _, f := range m.features {
 		if f.cfgType == cfgType {
-			return fm.Config(guildID, f.Key)
+			return m.FeatureConfig(guildID, f.Key)
 		}
 	}
 	return nil, fmt.Errorf("feature not found in the feature set")
 }
 
-// `SetupFeatures` sets up the features, checking for validity first
-func (fm *FeatureManager) SetupFeatures(deps SetupDeps) error {
+// SetupFeatures sets up the features, checking for validity first.
+func (m *Manager) SetupFeatures(deps SetupDeps) error {
 	var errs []error
-	for _, feature := range fm.features {
+	for _, feature := range m.features {
 		if err := feature.IsValid(); err != nil {
 			errs = append(errs, err)
 			continue
@@ -105,12 +98,11 @@ func (fm *FeatureManager) SetupFeatures(deps SetupDeps) error {
 	return errors.Join(errs...)
 }
 
-// `SyncCommands` syncs the commands to the Discord API
-func (fm *FeatureManager) SyncCommands(client bot.Client, guildsIDs []snowflake.ID) error {
-
+// SyncCommands syncs the commands to the Discord API.
+func (m *Manager) SyncCommands(client bot.Client, guildsIDs []snowflake.ID) error {
 	commandsToSync := []discord.ApplicationCommandCreate{}
 
-	for _, f := range fm.features {
+	for _, f := range m.features {
 		commandsToSync = append(commandsToSync, f.CommandsToSync()...)
 	}
 
@@ -129,39 +121,37 @@ func (fm *FeatureManager) SyncCommands(client bot.Client, guildsIDs []snowflake.
 	return nil
 }
 
-// -- Manager factory with options --
-
-// `NewManager` creates a new feature manager
-func NewManager(opts ...FeatureManagerOpts) (*FeatureManager, error) {
-	fm := &FeatureManager{}
+// NewManager creates a new feature manager.
+func NewManager(opts ...ManagerOption) (*Manager, error) {
+	m := &Manager{}
 
 	for _, opt := range opts {
-		opt(fm)
+		opt(m)
 	}
 
-	return fm, nil
+	return m, nil
 }
 
-// `FeatureManagerOpts` is a type that allows to pass options to the FeatureManager constructor
-type FeatureManagerOpts func(*FeatureManager)
+// ManagerOption configures a Manager.
+type ManagerOption func(*Manager)
 
-// `WithFeatureSet` sets the feature set for the FeatureManager
-func WithFeatureSet(fs FeatureSet) FeatureManagerOpts {
-	return func(fm *FeatureManager) {
-		fm.features = fs
-	}
-}
-
-// `WithBotConfig` sets the bot configuration for the FeatureManager
-func WithBotConfig(cfg *config.Bot) FeatureManagerOpts {
-	return func(fm *FeatureManager) {
-		fm.botConfig = cfg
+// WithSet sets the feature set for the Manager.
+func WithSet(fs Set) ManagerOption {
+	return func(m *Manager) {
+		m.features = fs
 	}
 }
 
-// `WithGuildsConfigs` sets the guilds configurations for the FeatureManager
-func WithGuildsConfigs(cfgs *config.GuildMap) FeatureManagerOpts {
-	return func(fm *FeatureManager) {
-		fm.guildsConfigs = cfgs
+// WithBotConfig sets the bot configuration for the Manager.
+func WithBotConfig(cfg *config.Bot) ManagerOption {
+	return func(m *Manager) {
+		m.botConfig = cfg
+	}
+}
+
+// WithGuildsConfigs sets the guilds configurations for the Manager.
+func WithGuildsConfigs(cfgs *config.GuildMap) ManagerOption {
+	return func(m *Manager) {
+		m.guildsConfigs = cfgs
 	}
 }

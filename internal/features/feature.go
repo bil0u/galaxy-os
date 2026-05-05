@@ -12,7 +12,7 @@ import (
 	"github.com/robfig/cron/v3"
 )
 
-type FeatureConfig interface {
+type Config interface {
 	Validate() error
 }
 
@@ -70,7 +70,7 @@ func (f Feature) CommandsToSync() []discord.ApplicationCommandCreate {
 	return f.cmdCreates
 }
 
-func New[T FeatureConfig](setup func(deps SetupDeps) error, opts ...featureOption) Feature {
+func New[T Config](setup func(deps SetupDeps) error, opts ...featureOption) Feature {
 	var zero T
 
 	feature := defaultFeature(fmt.Sprintf("%T", zero))

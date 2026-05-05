@@ -44,8 +44,8 @@ var startCmd = &cobra.Command{
 	RunE:  startBot,
 }
 
-var botFeatures = map[string]*features.FeatureSet{
-	"hue": features.NewFeatureSet(
+var botFeatures = map[string]*features.Set{
+	"hue": features.NewSet(
 		// Bot related features
 		bot_features.BotInfosFeature,
 		bot_features.LogPermissionsFeature,
@@ -56,7 +56,7 @@ var botFeatures = map[string]*features.FeatureSet{
 		guild_features.DailyMessageFeature,
 		guild_features.SuspiciousInterviewFeature,
 	),
-	"kevin": features.NewFeatureSet(
+	"kevin": features.NewSet(
 		// Bot related features
 		bot_features.BotInfosFeature,
 		bot_features.LogPermissionsFeature,
@@ -131,7 +131,7 @@ func startBot(cmd *cobra.Command, _ []string) error {
 	}
 
 	if syncCommands {
-		if err := features.Manager.SyncCommands(client, config.GuildsCfg.IDs(development == "true")); err != nil {
+		if err := features.SyncCommands(client, config.GuildsCfg.IDs(development == "true")); err != nil {
 			return fmt.Errorf("syncing commands: %w", err)
 		}
 	}

@@ -5,18 +5,19 @@ import (
 	"reflect"
 
 	"github.com/bil0u/galaxy-os/internal/config"
+	"github.com/disgoorg/disgo/bot"
 	"github.com/disgoorg/snowflake/v2"
 )
 
-var Manager *FeatureManager
+var mgr *Manager
 
 // Init initializes the feature module.
 // Should be called after config.Init(), config.InitGuilds(), and service initialization.
-func Init(fs FeatureSet, deps SetupDeps) error {
+func Init(fs Set, deps SetupDeps) error {
 	var err error
 
-	Manager, err = NewManager(
-		WithFeatureSet(fs),
+	mgr, err = NewManager(
+		WithSet(fs),
 		WithBotConfig(config.BotCfg),
 		WithGuildsConfigs(config.GuildsCfg),
 	)
@@ -24,28 +25,36 @@ func Init(fs FeatureSet, deps SetupDeps) error {
 		return fmt.Errorf("creating feature manager: %w", err)
 	}
 
-	if err := Manager.SetupFeatures(deps); err != nil {
+	if err := mgr.SetupFeatures(deps); err != nil {
 		return fmt.Errorf("setting up features: %w", err)
 	}
 
 	return nil
 }
 
+// SyncCommands syncs the registered commands to the Discord API.
+func SyncCommands(client bot.Client, guildIDs []snowflake.ID) error {
+	if mgr == nil {
+		return fmt.Errorf("feature manager not initialized, call features.Init() first")
+	}
+	return mgr.SyncCommands(client, guildIDs)
+}
+
 // GetConfig returns a feature configuration for a specific guild.
-func GetConfig[T FeatureConfig](guildID snowflake.ID) (T, error) {
+func GetConfig[T Config](guildID snowflake.ID) (T, error) {
 	var zero T
-	if Manager == nil {
+	if mgr == nil {
 		return zero, fmt.Errorf("feature manager not initialized, call features.Init() first")
 	}
-	config, err := Manager.ConfigFor(guildID, reflect.TypeOf(zero))
+	cfg, err := mgr.FeatureConfigFor(guildID, reflect.TypeOf(zero))
 	if err != nil {
 		return zero, err
 	}
 
-	return config.(T), nil
+	return cfg.(T), nil
 }
 
 // GetBotConfig returns a feature configuration for the bot.
-func GetBotConfig[T FeatureConfig]() (T, error) {
+func GetBotConfig[T Config]() (T, error) {
 	return GetConfig[T](0)
 }

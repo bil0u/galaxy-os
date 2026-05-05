@@ -7,7 +7,7 @@ import (
 	"github.com/bil0u/galaxy-os/internal/config"
 	"github.com/bil0u/galaxy-os/internal/features"
 	"github.com/bil0u/galaxy-os/internal/services"
-	"github.com/bil0u/galaxy-os/internal/utils"
+	"github.com/bil0u/galaxy-os/internal/locale"
 	"github.com/disgoorg/disgo/discord"
 	"github.com/disgoorg/snowflake/v2"
 )
@@ -22,7 +22,7 @@ var LogPermissionsFeature = features.New[LogPermissionsConfig](
 	setupBotPermissionsFeature,
 	features.WithType(features.BotFeature),
 	features.WithLocalizedName(discord.LocaleFrench, "Affiche les Permissions"),
-	features.WithDescription(utils.LocalizedString{
+	features.WithDescription(locale.Text{
 		discord.LocaleEnglishUS: "Log the permissions of the bot",
 		discord.LocaleFrench:    "Affiche les permissions du bot",
 	}),

@@ -3,11 +3,12 @@ package guild_features
 import (
 	"fmt"
 	"log/slog"
+	"slices"
 
 	"github.com/bil0u/galaxy-os/internal/config"
 	"github.com/bil0u/galaxy-os/internal/features"
 	"github.com/bil0u/galaxy-os/internal/services"
-	"github.com/bil0u/galaxy-os/internal/utils"
+	"github.com/bil0u/galaxy-os/internal/locale"
 	disbot "github.com/disgoorg/disgo/bot"
 	"github.com/disgoorg/disgo/discord"
 	"github.com/disgoorg/disgo/events"
@@ -17,11 +18,11 @@ import (
 var SelfAssignRolesFeature = features.New[SelfAssignRolesConfig](
 	setupSelfAssignRolesFeature,
 	features.WithType(features.GuildFeature),
-	features.WithName(utils.LocalizedString{
+	features.WithName(locale.Text{
 		discord.LocaleEnglishUS: "Self assign roles",
 		discord.LocaleFrench:    "Auto-attribution de rôles",
 	}),
-	features.WithDescription(utils.LocalizedString{
+	features.WithDescription(locale.Text{
 		discord.LocaleEnglishUS: "The bot will assign roles to itself automatically",
 		discord.LocaleFrench:    "Le bot s'attribuera des rôles automatiquement",
 	}),
@@ -140,7 +141,7 @@ func assignBotRoles(guildID snowflake.ID, roles, existingRoles []snowflake.ID) e
 	for _, roleID := range roles {
 		// Assign each role to the bot
 
-		if utils.Contains(existingRoles, roleID) {
+		if slices.Contains(existingRoles, roleID) {
 			slog.Info(fmt.Sprintf("Role '%s' already assigned to bot in guild '%s'. Skipping.", roleID.String(), guildID.String()))
 			continue
 		}

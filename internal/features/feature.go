@@ -1,11 +1,14 @@
 package features
 
 import (
+	"bytes"
 	"fmt"
 	"reflect"
 	"regexp"
+	"strings"
+	"unicode"
 
-	"github.com/bil0u/galaxy-os/internal/utils"
+	"github.com/bil0u/galaxy-os/internal/locale"
 	"github.com/disgoorg/disgo/bot"
 	"github.com/disgoorg/disgo/discord"
 	"github.com/disgoorg/disgo/handler"
@@ -32,8 +35,8 @@ type SetupDeps struct {
 type Feature struct {
 	Type        featureType
 	Key         string
-	Name        utils.LocalizedString
-	Description utils.LocalizedString
+	Name        locale.Text
+	Description locale.Text
 	Setup       func(deps SetupDeps) error
 	cfgType     reflect.Type
 	cmdCreates  []discord.ApplicationCommandCreate
@@ -84,14 +87,36 @@ func New[T Config](setup func(deps SetupDeps) error, opts ...featureOption) Feat
 
 type featureOption func(*Feature)
 
+var (
+	matchFirstCap = regexp.MustCompile("(.)([A-Z][a-z]+)")
+	matchAllCap   = regexp.MustCompile("([a-z0-9])([A-Z])")
+)
+
+func toSnakeCase(str string) string {
+	snake := matchFirstCap.ReplaceAllString(str, "${1}_${2}")
+	snake = matchAllCap.ReplaceAllString(snake, "${1}_${2}")
+	return strings.ToLower(snake)
+}
+
+func addSpaces(s string) string {
+	buf := &bytes.Buffer{}
+	for i, r := range s {
+		if unicode.IsUpper(r) && i > 0 {
+			buf.WriteRune(' ')
+		}
+		buf.WriteRune(r)
+	}
+	return buf.String()
+}
+
 func defaultFeature(configName string) Feature {
 	feature := Feature{}
 	pattern := regexp.MustCompile(`^.*?\.(.*?)(?:Feature|Config)*$`)
 	matches := pattern.FindStringSubmatch(configName)
 	if matches != nil {
-		feature.Key = utils.ToSnakeCase(matches[1])
-		feature.Name = utils.LocalizedString{
-			discord.LocaleEnglishUS: utils.AddSpaces(matches[1]),
+		feature.Key = toSnakeCase(matches[1])
+		feature.Name = locale.Text{
+			discord.LocaleEnglishUS: addSpaces(matches[1]),
 		}
 	}
 	return feature
@@ -109,33 +134,33 @@ func WithKey(key string) featureOption {
 	}
 }
 
-func WithName(name utils.LocalizedString) featureOption {
+func WithName(name locale.Text) featureOption {
 	return func(f *Feature) {
 		f.Name = name
 	}
 }
 
-func WithDescription(description utils.LocalizedString) featureOption {
+func WithDescription(description locale.Text) featureOption {
 	return func(f *Feature) {
 		f.Description = description
 	}
 }
 
-func WithLocalizedName(locale discord.Locale, name string) featureOption {
+func WithLocalizedName(l discord.Locale, name string) featureOption {
 	return func(f *Feature) {
 		if f.Name == nil {
-			f.Name = utils.LocalizedString{}
+			f.Name = locale.Text{}
 		}
-		f.Name[locale] = name
+		f.Name[l] = name
 	}
 }
 
-func WithLocalizedDescription(locale discord.Locale, description string) featureOption {
+func WithLocalizedDescription(l discord.Locale, description string) featureOption {
 	return func(f *Feature) {
 		if f.Description == nil {
-			f.Description = utils.LocalizedString{}
+			f.Description = locale.Text{}
 		}
-		f.Description[locale] = description
+		f.Description[l] = description
 	}
 }
 

@@ -2,7 +2,7 @@ package bot_features
 
 import (
 	"github.com/bil0u/galaxy-os/internal/features"
-	"github.com/bil0u/galaxy-os/internal/utils"
+	"github.com/bil0u/galaxy-os/internal/locale"
 	"github.com/disgoorg/disgo/discord"
 	"github.com/disgoorg/disgo/handler"
 	"github.com/disgoorg/json"
@@ -20,7 +20,7 @@ var TestFeature = features.New[TestConfig](
 	setupTestFeature,
 	features.WithType(features.BotFeature),
 	features.WithLocalizedName(discord.LocaleFrench, "Test"),
-	features.WithDescription(utils.LocalizedString{
+	features.WithDescription(locale.Text{
 		discord.LocaleEnglishUS: "Testing feature, do not use",
 		discord.LocaleFrench:    "Test, ne pas utiliser",
 	}),
@@ -36,7 +36,7 @@ func setupTestFeature(deps features.SetupDeps) error {
 
 func TestComponent(e *handler.ComponentEvent) error {
 	return e.UpdateMessage(discord.MessageUpdate{
-		Content: json.Ptr(utils.LocalizedString{
+		Content: json.Ptr(locale.Text{
 			discord.LocaleEnglishUS: "The text has been updated",
 			discord.LocaleFrench:    "Le texte a été mis à jour",
 		}.Using(e.Locale())),
@@ -45,24 +45,24 @@ func TestComponent(e *handler.ComponentEvent) error {
 
 var testCommand = discord.SlashCommandCreate{
 	Name: "test",
-	NameLocalizations: utils.LocalizedString{
+	NameLocalizations: locale.Text{
 		discord.LocaleEnglishUS: "test",
 		discord.LocaleFrench:    "test",
 	},
 	Description: "Test command",
-	DescriptionLocalizations: utils.LocalizedString{
+	DescriptionLocalizations: locale.Text{
 		discord.LocaleEnglishUS: "Test command",
 		discord.LocaleFrench:    "Commande de test",
 	},
 	Options: []discord.ApplicationCommandOption{
 		discord.ApplicationCommandOptionString{
 			Name: "choice",
-			NameLocalizations: utils.LocalizedString{
+			NameLocalizations: locale.Text{
 				discord.LocaleEnglishUS: "choice",
 				discord.LocaleFrench:    "choix",
 			},
 			Description: "Select a number",
-			DescriptionLocalizations: utils.LocalizedString{
+			DescriptionLocalizations: locale.Text{
 				discord.LocaleEnglishUS: "Select a number",
 				discord.LocaleFrench:    "Selectionne un nombre",
 			},
@@ -75,7 +75,7 @@ var testCommand = discord.SlashCommandCreate{
 func TestHandler(e *handler.CommandEvent) error {
 	data := e.SlashCommandInteractionData()
 	return e.CreateMessage(discord.NewMessageCreateBuilder().
-		SetContentf(utils.LocalizedString{
+		SetContentf(locale.Text{
 			discord.LocaleEnglishUS: "Test command. Choice: %s",
 			discord.LocaleFrench:    "Commande de test. Choix: %s",
 		}.Using(e.Locale()), data.String("choice")).

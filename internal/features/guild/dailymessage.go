@@ -8,7 +8,7 @@ import (
 	"github.com/bil0u/galaxy-os/internal/config"
 	"github.com/bil0u/galaxy-os/internal/features"
 	"github.com/bil0u/galaxy-os/internal/services"
-	"github.com/bil0u/galaxy-os/internal/utils"
+	"github.com/bil0u/galaxy-os/internal/locale"
 	"github.com/disgoorg/disgo/discord"
 	"github.com/disgoorg/snowflake/v2"
 )
@@ -17,7 +17,7 @@ var DailyMessageFeature = features.New[DailyMessageConfig](
 	setupDailyMessageFeature,
 	features.WithType(features.GuildFeature),
 	features.WithLocalizedName(discord.LocaleFrench, "Message du jour"),
-	features.WithDescription(utils.LocalizedString{
+	features.WithDescription(locale.Text{
 		discord.LocaleEnglishUS: "Send a message every day at a specific time",
 		discord.LocaleFrench:    "Envoie un message tous les jours à une heure spécifique",
 	}),
@@ -95,7 +95,7 @@ func setupDailyMessageFeature(deps features.SetupDeps) error {
 	return nil
 }
 
-var dailyMessageTemplate = utils.LocalizedString{
+var dailyMessageTemplate = locale.Text{
 	discord.LocaleEnglishUS: "Hello %s! This is your daily message.",
 	discord.LocaleFrench:    "Bonjour %s! Ceci est votre message quotidien.",
 }

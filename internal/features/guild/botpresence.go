@@ -8,7 +8,7 @@ import (
 
 	"github.com/bil0u/galaxy-os/internal/config"
 	"github.com/bil0u/galaxy-os/internal/features"
-	"github.com/bil0u/galaxy-os/internal/utils"
+	"github.com/bil0u/galaxy-os/internal/locale"
 	"github.com/disgoorg/disgo/bot"
 	"github.com/disgoorg/disgo/discord"
 	"github.com/disgoorg/disgo/events"
@@ -19,7 +19,7 @@ var BotPresenceFeature = features.New[BotPresenceConfig](
 	setupBotPresenceFeature,
 	features.WithType(features.GuildFeature),
 	features.WithLocalizedName(discord.LocaleFrench, "Présence du bot"),
-	features.WithDescription(utils.LocalizedString{
+	features.WithDescription(locale.Text{
 		discord.LocaleEnglishUS: "Automatically sets the bot presence based on multiple events",
 		discord.LocaleFrench:    "Définit automatiquement la présence du bot en fonction de plusieurs événements",
 	}),

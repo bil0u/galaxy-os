@@ -1,14 +1,13 @@
-package utils
+package guild_features
 
 import (
 	"errors"
 	"fmt"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 )
-
-// Interview logic
 
 type Interview []InterviewQuestion
 
@@ -44,7 +43,6 @@ const (
 	QuestionTypeSingleChoice   InterviewQuestionType = "single-choice"
 )
 
-// IsProperlyConfigured checks if the question is properly configured
 func (i InterviewQuestion) isProperlyConfigured() error {
 	var errs []error
 	if i.Question == "" {
@@ -103,7 +101,6 @@ func (i InterviewQuestion) isProperlyConfigured() error {
 	return nil
 }
 
-// answerRespectFormat checks if the answer respects the format of the question
 func (i InterviewQuestion) answerRespectFormat() (bool, error) {
 	switch i.Type {
 	case QuestionTypeFreeText:
@@ -115,13 +112,11 @@ func (i InterviewQuestion) answerRespectFormat() (bool, error) {
 		if len(i.UserAnswers) != 1 {
 			return false, fmt.Errorf("free number question should have only one answer")
 		}
-		// Check if the answer is a number using regex, allowing negative numbers, and extract the number and the sign
 		pattern := regexp.MustCompile(`^-?[0-9]+$`)
 		if !pattern.MatchString(i.UserAnswers[0]) {
 			return false, fmt.Errorf("free number question should have a number as answer")
 		}
 
-		// If we have possible answers, check if the answer respects each of the constraints
 		if len(i.PossibleAnswers) == 0 {
 			return true, nil
 		}
@@ -139,7 +134,7 @@ func (i InterviewQuestion) answerRespectFormat() (bool, error) {
 		}
 		if len(i.PossibleAnswers) > 0 {
 			for _, userAnswer := range i.UserAnswers {
-				if !Contains(i.PossibleAnswers, userAnswer) {
+				if !slices.Contains(i.PossibleAnswers, userAnswer) {
 					return false, fmt.Errorf("invalid answer '%s'", userAnswer)
 				}
 			}
@@ -149,7 +144,7 @@ func (i InterviewQuestion) answerRespectFormat() (bool, error) {
 		if len(i.UserAnswers) != 1 {
 			return false, fmt.Errorf("single choice question should have only one answer")
 		}
-		if len(i.PossibleAnswers) > 0 && !Contains(i.PossibleAnswers, i.UserAnswers[0]) {
+		if len(i.PossibleAnswers) > 0 && !slices.Contains(i.PossibleAnswers, i.UserAnswers[0]) {
 			return false, fmt.Errorf("invalid answer '%s'", i.UserAnswers[0])
 		}
 		return true, nil
@@ -187,14 +182,12 @@ func (i InterviewQuestion) getAnswerAsSlice() []string {
 
 func intRespectConstraint(intValue int, constraints []string) (bool, error) {
 
-	// Constains should always be provided
 	if len(constraints) == 0 {
 		return false, fmt.Errorf("constraints should be provided")
 	}
 
 	var errs []error
 	for _, possibleAnswer := range constraints {
-		// Check if the constraint is a plain number
 		plainNumber, err := strconv.Atoi(possibleAnswer)
 		if err == nil {
 			if intValue == plainNumber {
@@ -203,7 +196,6 @@ func intRespectConstraint(intValue int, constraints []string) (bool, error) {
 			errs = append(errs, fmt.Errorf("answer '%d' does not equal '%d'", intValue, plainNumber))
 			continue
 		}
-		// Check >=/<= before >/< to avoid prefix mismatch
 		if strings.HasPrefix(possibleAnswer, ">=") {
 			possibleAnswerInt, _ := strconv.Atoi(possibleAnswer[2:])
 			if !(intValue >= possibleAnswerInt) {
@@ -226,7 +218,6 @@ func intRespectConstraint(intValue int, constraints []string) (bool, error) {
 			}
 		}
 
-		// Check if the answer is a range operator matching the pattern
 		pattern := regexp.MustCompile(`^(-?[0-9]+)-(-?[0-9]+)$`)
 		if pattern.MatchString(possibleAnswer) {
 			possibleAnswers := strings.Split(possibleAnswer, "-")

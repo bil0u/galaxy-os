@@ -203,8 +203,10 @@ func startBot(_ *cobra.Command, _ []string) error {
 				store := config.NewFileStore(".")
 				resolver = config.NewResolver(store, bot)
 				guildIDs := guilds.IDs(development == "true")
-				resolver.SetGuildIDs(guildIDs)
-				state.GuildIDs = guildIDs
+
+				mgr := config.NewManager(guildIDs, resolver, botLogger)
+				state.Guilds = mgr
+				state.GuildIDs = mgr.Guilds()
 				return nil
 			},
 		},
@@ -270,7 +272,7 @@ func startBot(_ *cobra.Command, _ []string) error {
 							errs = append(errs, fmt.Errorf("setting up feature %q: %w", f.Name(), err))
 						}
 					case platform.GuildScope:
-						for _, guildID := range state.GuildIDs {
+						for _, guildID := range state.Guilds.Guilds() {
 							deps := platform.Deps{
 								Logger:   botLogger.With("feature", f.Name(), "guild", guildID),
 								Rest:     restClient,
@@ -294,6 +296,7 @@ func startBot(_ *cobra.Command, _ []string) error {
 							Locale:   localeResolver,
 							Configs:  cfgProvider,
 							BotName:  bot,
+							Guilds:   state.Guilds.Accessor(),
 							Cron:     cronScheduler,
 							OAuth:    oauthProvider,
 						}

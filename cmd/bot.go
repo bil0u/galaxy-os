@@ -24,11 +24,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var (
-	enableCron   bool
-	enableOAuth2 bool
-	syncCommands bool
-)
+var syncCommands bool
 
 var botCmd = &cobra.Command{
 	Use:   "bot",
@@ -38,8 +34,6 @@ var botCmd = &cobra.Command{
 func init() {
 	botCmd.AddCommand(startCmd)
 
-	startCmd.Flags().BoolVarP(&enableCron, "cron", "c", false, "Whether to enable cron jobs")
-	startCmd.Flags().BoolVarP(&enableOAuth2, "oauth2", "o", false, "Whether to enable oauth2 server")
 	startCmd.Flags().BoolVarP(&syncCommands, "sync", "s", false, "Sync slash commands to Discord before starting")
 }
 
@@ -167,18 +161,37 @@ func startBot(cmd *cobra.Command, _ []string) error {
 		botLogger.Info("gateway reconnected")
 	}))
 
-	if enableCron {
-		service.InitCron()
+	// --- Service registry: register available services, collect requirements ---
+	registry := service.NewRegistry()
+	registry.Register(platform.CronService, service.NewCronService())
+
+	// Only register OAuth if the config is valid for it.
+	if err := botCfg.ValidateOAuth(); err == nil {
+		registry.Register(platform.OAuthService,
+			service.NewOAuthService(botCfg.ApplicationID, botCfg.ClientSecret, botCfg.BaseURL))
 	}
 
-	if enableOAuth2 {
-		if err := botCfg.ValidateOAuth(); err != nil {
-			return fmt.Errorf("oauth2 config: %w", err)
-		}
-		service.InitOAuth(botCfg.ApplicationID, botCfg.ClientSecret, botCfg.BaseURL)
+	// Collect service requirements from features.
+	for _, f := range def.features {
+		registry.Require(f.Needs()...)
+	}
+
+	// Start only the services that features actually need.
+	if err := registry.StartAll(ctx); err != nil {
+		return fmt.Errorf("starting services: %w", err)
 	}
 
 	registrar := &muxRegistrar{mux: router}
+
+	// Populate Cron/OAuth in Deps only when the service was started.
+	var cronScheduler platform.CronScheduler
+	if svc := registry.Service(platform.CronService); svc != nil {
+		cronScheduler = svc.(*service.CronService)
+	}
+	var oauthProvider platform.OAuthProvider
+	if svc := registry.Service(platform.OAuthService); svc != nil {
+		oauthProvider = svc.(*service.OAuthService)
+	}
 
 	// Setup features: iterate each feature and call Setup with platform.Deps.
 	// BotScope features are set up once. GuildScope features are set up per guild.
@@ -192,6 +205,8 @@ func startBot(cmd *cobra.Command, _ []string) error {
 				Commands: registrar,
 				Configs:  cfgProvider,
 				BotName:  bot,
+				Cron:     cronScheduler,
+				OAuth:    oauthProvider,
 				// TODO: wire Locale, Bus, Env, Rest when implementations exist
 			}
 			if err := f.Setup(deps); err != nil {
@@ -205,6 +220,8 @@ func startBot(cmd *cobra.Command, _ []string) error {
 					Configs:  cfgProvider,
 					BotName:  bot,
 					GuildID:  guildID,
+					Cron:     cronScheduler,
+					OAuth:    oauthProvider,
 					// TODO: wire Locale, Bus, Env, Rest, Guilds when implementations exist
 				}
 				if err := f.Setup(deps); err != nil {
@@ -217,6 +234,8 @@ func startBot(cmd *cobra.Command, _ []string) error {
 				Commands: registrar,
 				Configs:  cfgProvider,
 				BotName:  bot,
+				Cron:     cronScheduler,
+				OAuth:    oauthProvider,
 				// TODO: wire Locale, Bus, Env, Rest, Guilds when implementations exist
 			}
 			if err := f.Setup(deps); err != nil {
@@ -238,21 +257,13 @@ func startBot(cmd *cobra.Command, _ []string) error {
 		return fmt.Errorf("opening gateway: %w", err)
 	}
 
-	if enableCron {
-		service.StartCron()
-	}
-
-	if enableOAuth2 {
-		service.StartOAuth()
-	}
-
 	defer func() {
-		if enableCron {
-			service.StopCron()
-		}
-		withTimeout, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
-		client.Close(withTimeout)
+		if stopErr := registry.StopAll(shutdownCtx); stopErr != nil {
+			slog.Error("error stopping services", slog.Any("error", stopErr))
+		}
+		client.Close(shutdownCtx)
 	}()
 
 	slog.Info("----- Bot is running 🚀 Press CTRL-C to exit -----")

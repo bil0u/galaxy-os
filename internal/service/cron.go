@@ -1,32 +1,62 @@
 package service
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 
+	"github.com/bil0u/galaxy-os/internal/platform"
 	"github.com/robfig/cron/v3"
 )
 
-var scheduler *cron.Cron
+// CronService wraps robfig/cron as a platform.Service and platform.CronScheduler.
+type CronService struct {
+	scheduler *cron.Cron
+}
 
-func InitCron() *cron.Cron {
-	scheduler = cron.New(cron.WithLogger(cronLogger{}), cron.WithChain(
+// NewCronService creates a CronService. Call Start to begin scheduling.
+func NewCronService() *CronService {
+	return &CronService{}
+}
+
+func (s *CronService) Name() string { return "cron" }
+
+func (s *CronService) Start(_ context.Context) error {
+	s.scheduler = cron.New(cron.WithLogger(cronLogger{}), cron.WithChain(
 		cron.Recover(cron.DefaultLogger),
 	))
-	return scheduler
+	s.scheduler.Start()
+	return nil
 }
 
-func Scheduler() *cron.Cron {
-	return scheduler
+func (s *CronService) Health(_ context.Context) platform.Health {
+	status := platform.StatusDown
+	if s.scheduler != nil {
+		status = platform.StatusUp
+	}
+	return platform.Health{
+		Name:   s.Name(),
+		Status: status,
+	}
 }
 
-func StartCron() {
-	scheduler.Start()
-}
-
-func StopCron() {
-	closeCtx := scheduler.Stop()
+func (s *CronService) Stop(_ context.Context) error {
+	if s.scheduler == nil {
+		return nil
+	}
+	closeCtx := s.scheduler.Stop()
 	<-closeCtx.Done()
+	return nil
+}
+
+// AddFunc adds a cron job. Features type-assert CronScheduler to *CronService.
+func (s *CronService) AddFunc(spec string, cmd func()) (cron.EntryID, error) {
+	return s.scheduler.AddFunc(spec, cmd)
+}
+
+// Remove removes a scheduled cron entry.
+func (s *CronService) Remove(id cron.EntryID) {
+	s.scheduler.Remove(id)
 }
 
 type cronLogger struct{}

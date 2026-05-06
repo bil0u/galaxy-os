@@ -94,7 +94,6 @@ build/kevin: build
 
 ## run/hue: run the Hue bot
 run/hue: bot = hue
-run/hue: runArgs = --cron --oauth2
 run/hue: run
 
 ## run/kevin: run the Kevin bot

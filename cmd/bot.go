@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -11,10 +12,12 @@ import (
 
 	"github.com/bil0u/galaxy-os/internal/config"
 	"github.com/bil0u/galaxy-os/internal/feature"
+	"github.com/bil0u/galaxy-os/internal/platform"
 	"github.com/bil0u/galaxy-os/internal/service"
 	"github.com/disgoorg/disgo"
 	disbot "github.com/disgoorg/disgo/bot"
 	"github.com/disgoorg/disgo/cache"
+	"github.com/disgoorg/disgo/discord"
 	"github.com/disgoorg/disgo/events"
 	"github.com/disgoorg/disgo/gateway"
 	"github.com/disgoorg/disgo/handler"
@@ -47,37 +50,62 @@ var startCmd = &cobra.Command{
 }
 
 type botDef struct {
-	features   *feature.Set
+	features   []platform.Feature
 	cacheFlags cache.Flags
 	intents    gateway.Intents
 }
 
 var bots = map[string]botDef{
 	"hue": {
-		features: feature.NewSet(
-			feature.BotInfosFeature,
-			feature.LogPermissionsFeature,
-			feature.TestFeature,
-			feature.BotPresenceFeature,
-			feature.SelfAssignRolesFeature,
-			feature.DailyMessageFeature,
-			feature.SuspiciousInterviewFeature,
-		),
+		features: []platform.Feature{
+			feature.Info,
+			feature.Permissions,
+			feature.Test,
+			feature.Presence,
+			feature.SelfAssign,
+			feature.DailyMessage,
+			feature.SuspiciousInterview,
+		},
 		cacheFlags: cache.FlagGuilds | cache.FlagMembers | cache.FlagRoles,
 		intents:    gateway.IntentGuilds | gateway.IntentGuildMembers,
 	},
 	"kevin": {
-		features: feature.NewSet(
-			feature.BotInfosFeature,
-			feature.LogPermissionsFeature,
-			feature.TestFeature,
-			feature.BotPresenceFeature,
-			feature.SelfAssignRolesFeature,
-			feature.DailyMessageFeature,
-		),
+		features: []platform.Feature{
+			feature.Info,
+			feature.Permissions,
+			feature.Test,
+			feature.Presence,
+			feature.SelfAssign,
+			feature.DailyMessage,
+		},
 		cacheFlags: cache.FlagGuilds | cache.FlagRoles,
 		intents:    gateway.IntentGuilds,
 	},
+}
+
+// muxRegistrar adapts handler.Mux to platform.Registrar.
+// disgo v0.19.3 handler types include a typed data parameter;
+// the platform.Registrar signatures omit it for simplicity.
+type muxRegistrar struct {
+	mux *handler.Mux
+}
+
+func (r *muxRegistrar) SlashCommand(path string, h platform.SlashCommandHandler) {
+	r.mux.SlashCommand(path, func(_ discord.SlashCommandInteractionData, e *handler.CommandEvent) error {
+		return h(e)
+	})
+}
+
+func (r *muxRegistrar) ButtonComponent(customID string, h platform.ButtonComponentHandler) {
+	r.mux.ButtonComponent(customID, func(_ discord.ButtonInteractionData, e *handler.ComponentEvent) error {
+		return h(e)
+	})
+}
+
+func (r *muxRegistrar) Autocomplete(path string, h platform.AutocompleteHandler) {
+	r.mux.Autocomplete(path, func(e *handler.AutocompleteEvent) error {
+		return h(e)
+	})
 }
 
 func startBot(cmd *cobra.Command, _ []string) error {
@@ -85,7 +113,7 @@ func startBot(cmd *cobra.Command, _ []string) error {
 	if !ok {
 		return fmt.Errorf("bot %q not found", bot)
 	}
-	if def.features == nil {
+	if len(def.features) == 0 {
 		return fmt.Errorf("no features defined for bot %q", bot)
 	}
 
@@ -144,33 +172,57 @@ func startBot(cmd *cobra.Command, _ []string) error {
 		service.InitOAuth(botCfg.ApplicationID, botCfg.ClientSecret, botCfg.BaseURL)
 	}
 
-	registry := feature.NewRegistry(*def.features, botCfg, guilds)
+	registrar := &muxRegistrar{mux: router}
 
-	deps := feature.SetupDeps{
-		Bot: feature.BotServices{
-			Client: client,
-			Router: router,
-			Logger: botLogger,
-		},
-		Shared: feature.SharedServices{
-			Cron: service.Scheduler(),
-		},
-		Configs: feature.Configs{
-			Bot:      botCfg,
-			Guilds:   guilds,
-			Global:   globalCfg,
-			Features: registry,
-		},
+	// Setup features: iterate each feature and call Setup with platform.Deps.
+	// BotScope features are set up once. GuildScope features are set up per guild.
+	var errs []error
+	guildIDs := guilds.IDs(development == "true")
+	for _, f := range def.features {
+		switch f.Scope() {
+		case platform.BotScope:
+			deps := platform.Deps{
+				Logger:   botLogger.With("feature", f.Name()),
+				Commands: registrar,
+				BotName:  bot,
+				// TODO: wire Locale, Bus, Configs, Env, Rest when implementations exist
+			}
+			if err := f.Setup(deps); err != nil {
+				errs = append(errs, fmt.Errorf("setting up feature %q: %w", f.Name(), err))
+			}
+		case platform.GuildScope:
+			for _, guildID := range guildIDs {
+				deps := platform.Deps{
+					Logger:   botLogger.With("feature", f.Name(), "guild", guildID),
+					Commands: registrar,
+					BotName:  bot,
+					GuildID:  guildID,
+					// TODO: wire Locale, Bus, Configs, Env, Rest, Guilds when implementations exist
+				}
+				if err := f.Setup(deps); err != nil {
+					errs = append(errs, fmt.Errorf("setting up feature %q for guild %s: %w", f.Name(), guildID, err))
+				}
+			}
+		case platform.CrossGuildScope:
+			deps := platform.Deps{
+				Logger:   botLogger.With("feature", f.Name()),
+				Commands: registrar,
+				BotName:  bot,
+				// TODO: wire Locale, Bus, Configs, Env, Rest, Guilds when implementations exist
+			}
+			if err := f.Setup(deps); err != nil {
+				errs = append(errs, fmt.Errorf("setting up feature %q: %w", f.Name(), err))
+			}
+		}
 	}
-
-	if err := feature.SetupFeatures(*def.features, deps); err != nil {
+	if err := errors.Join(errs...); err != nil {
 		return fmt.Errorf("setting up features: %w", err)
 	}
 
+	// TODO: command syncing was previously handled by feature.SyncCommands.
+	// Re-implement when features declare their command creates via platform.Feature.
 	if syncCommands {
-		if err := feature.SyncCommands(*def.features, client, guilds.IDs(development == "true")); err != nil {
-			return fmt.Errorf("syncing commands: %w", err)
-		}
+		slog.Warn("command syncing not yet implemented with new feature framework")
 	}
 
 	if err := client.OpenGateway(ctx); err != nil {

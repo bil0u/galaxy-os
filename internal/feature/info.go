@@ -1,50 +1,36 @@
 package feature
 
 import (
-	"fmt"
+	"context"
 
-	"github.com/bil0u/galaxy-os/internal/locale"
+	"github.com/bil0u/galaxy-os/internal/platform"
 	"github.com/disgoorg/disgo/discord"
 	"github.com/disgoorg/disgo/handler"
 )
 
-var BotInfosFeature = New[BotInfosConfig](
-	BotInfosSetup,
-	WithType(BotFeature),
-	WithLocalizedName(discord.LocaleFrench, "Bot Infos"),
-	WithDescription(locale.Text{
-		discord.LocaleEnglishUS: "Display the bot informations",
-		discord.LocaleFrench:    "Affiche les informations du bot",
-	}),
-	WithCommandsToSync(botInfosCommand),
-)
+// Info displays bot version and commit information.
+var Info = &info{}
 
-type BotInfosConfig struct{}
+type info struct{}
 
-func (f BotInfosConfig) Validate() error {
-	return nil
-}
+type infoConfig struct{}
 
-func BotInfosSetup(deps SetupDeps) error {
-	global := deps.Configs.Global
+func (c infoConfig) Validate() error { return nil }
 
-	deps.Bot.Router.SlashCommand("/botinfos", func(_ discord.SlashCommandInteractionData, e *handler.CommandEvent) error {
+func (f *info) Name() string               { return "info" }
+func (f *info) Scope() platform.Scope       { return platform.BotScope }
+func (f *info) Needs() []platform.ServiceID { return nil }
+
+func (f *info) Setup(deps platform.Deps) error {
+	// TODO: version/commit info was previously read from deps.Configs.Global
+	// which is not available in platform.Deps. Wire when Global config is accessible.
+	deps.Commands.SlashCommand("/botinfos", func(e *handler.CommandEvent) error {
 		return e.CreateMessage(discord.MessageCreate{
-			Content: fmt.Sprintf("Version: %s\nCommit: %s", global.Version, global.Commit),
+			Content: "Bot info unavailable (global config not wired yet)",
 		})
 	})
 	return nil
 }
 
-var botInfosCommand = discord.SlashCommandCreate{
-	Name: "botinfos",
-	NameLocalizations: locale.Text{
-		discord.LocaleEnglishUS: "bot-infos",
-		discord.LocaleFrench:    "bot-infos",
-	},
-	Description: "Display the bot informations",
-	DescriptionLocalizations: locale.Text{
-		discord.LocaleEnglishUS: "Display the bot informations",
-		discord.LocaleFrench:    "Affiche les informations du bot",
-	},
-}
+func (f *info) Start(ctx context.Context) error { return nil }
+func (f *info) Stop(ctx context.Context) error  { return nil }

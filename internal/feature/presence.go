@@ -4,37 +4,31 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"time"
 
-	"github.com/bil0u/galaxy-os/internal/config"
-	"github.com/bil0u/galaxy-os/internal/locale"
-	"github.com/disgoorg/disgo/bot"
-	"github.com/disgoorg/disgo/discord"
-	"github.com/disgoorg/disgo/events"
-	"github.com/disgoorg/disgo/gateway"
+	"github.com/bil0u/galaxy-os/internal/platform"
+	"github.com/disgoorg/snowflake/v2"
 )
 
-var BotPresenceFeature = New[BotPresenceConfig](
-	BotPresenceSetup,
-	WithType(GuildFeature),
-	WithLocalizedName(discord.LocaleFrench, "Présence du bot"),
-	WithDescription(locale.Text{
-		discord.LocaleEnglishUS: "Automatically sets the bot presence based on multiple events",
-		discord.LocaleFrench:    "Définit automatiquement la présence du bot en fonction de plusieurs événements",
-	}),
-)
+// Presence automatically sets the bot presence based on guild config.
+var Presence = &presence{}
 
-type BotPresenceConfig struct {
+type presence struct {
+	logger  *slog.Logger
+	configs platform.ConfigProvider
+	guildID snowflake.ID
+}
+
+type presenceConfig struct {
 	Enabled  bool
 	Messages map[string]string
 }
 
-func (f BotPresenceConfig) Validate() error {
+func (c presenceConfig) Validate() error {
 	var errs []error
-	if len(f.Messages) == 0 {
+	if len(c.Messages) == 0 {
 		errs = append(errs, fmt.Errorf("messages are required"))
 	}
-	_, ok := f.Messages["bot_ready"]
+	_, ok := c.Messages["bot_ready"]
 	if !ok {
 		errs = append(errs, fmt.Errorf("message 'bot_ready' is required"))
 	}
@@ -44,32 +38,21 @@ func (f BotPresenceConfig) Validate() error {
 	return nil
 }
 
-func BotPresenceSetup(deps SetupDeps) error {
-	client := deps.Bot.Client
-	registry := deps.Configs.Features
-	guilds := deps.Configs.Guilds
+func (f *presence) Name() string               { return "presence" }
+func (f *presence) Scope() platform.Scope       { return platform.GuildScope }
+func (f *presence) Needs() []platform.ServiceID { return nil }
 
-	client.AddEventListeners(bot.NewListenerFunc(func(_ *events.Ready) {
-		setPresenceWhenReady(client, registry, guilds)
-	}))
+func (f *presence) Setup(deps platform.Deps) error {
+	f.logger = deps.Logger
+	f.configs = deps.Configs
+	f.guildID = deps.GuildID
+
+	// TODO: presence setting requires gateway client access (client.SetPresenceForShard)
+	// and event listeners (bot.NewListenerFunc for events.Ready), neither of which are
+	// available in platform.Deps. Wire when gateway/client access is added to Deps.
+
 	return nil
 }
 
-func setPresenceWhenReady(client *bot.Client, registry *FeatureRegistry, guilds *config.GuildMap) {
-	for guildID := range guilds.All() {
-		cfg, err := GetConfigFrom[BotPresenceConfig](registry, guildID)
-		if err != nil || !cfg.Enabled {
-			continue
-		}
-
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		err = client.SetPresenceForShard(ctx, 0, gateway.WithCustomActivity(cfg.Messages["bot_ready"]), gateway.WithOnlineStatus(discord.OnlineStatusOnline))
-		cancel()
-		if err != nil {
-			slog.Error(fmt.Sprintf("failed to set presence for guild '%s'", guildID), slog.Any("err", err))
-		}
-		slog.Info(fmt.Sprintf("Presence set using config from guild '%s'", guildID))
-		return
-	}
-	slog.Warn("no enabled BotPresence config found")
-}
+func (f *presence) Start(ctx context.Context) error { return nil }
+func (f *presence) Stop(ctx context.Context) error  { return nil }

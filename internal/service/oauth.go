@@ -1,14 +1,17 @@
 package service
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log/slog"
 	"math/rand"
+	"net"
 	"net/http"
 	"sync"
 	"time"
 
+	"github.com/bil0u/galaxy-os/internal/platform"
 	"github.com/disgoorg/disgo/discord"
 	"github.com/disgoorg/disgo/oauth2"
 	"github.com/disgoorg/disgo/rest"
@@ -16,32 +19,79 @@ import (
 )
 
 var (
-	oauthClient    *oauth2.Client
-	serverBaseURL  string
-	exposePort     = 42000
 	routeRoot      = "/oauth2"
 	routeAuthorize = "/oauth2/authorize"
 	routeRedirect  = "/oauth2/redirect"
 )
 
-func InitOAuth(applicationID snowflake.ID, clientSecret, baseURL string) *oauth2.Client {
-	serverBaseURL = baseURL
+// OAuthService wraps disgo's OAuth2 client as a platform.Service and platform.OAuthProvider.
+type OAuthService struct {
+	applicationID snowflake.ID
+	clientSecret  string
+	baseURL       string
+	exposePort    int
+
+	client   *oauth2.Client
+	listener net.Listener
+}
+
+// NewOAuthService creates an OAuthService with the required configuration.
+func NewOAuthService(applicationID snowflake.ID, clientSecret, baseURL string) *OAuthService {
+	return &OAuthService{
+		applicationID: applicationID,
+		clientSecret:  clientSecret,
+		baseURL:       baseURL,
+		exposePort:    42000,
+	}
+}
+
+func (s *OAuthService) Name() string { return "oauth" }
+
+func (s *OAuthService) Start(_ context.Context) error {
 	clientOpts := oauth2.WithRestClientConfigOpts(rest.WithHTTPClient(http.DefaultClient))
-	oauthClient = oauth2.New(applicationID, clientSecret, clientOpts)
-	return oauthClient
-}
+	s.client = oauth2.New(s.applicationID, s.clientSecret, clientOpts)
 
-func OAuthClient() *oauth2.Client {
-	return oauthClient
-}
-
-func StartOAuth() {
 	mux := http.NewServeMux()
-	mux.HandleFunc(routeRoot, rootHandler)
-	mux.HandleFunc(routeAuthorize, authorizeHandler)
-	mux.HandleFunc(routeRedirect, redirectHandler)
+	mux.HandleFunc(routeRoot, s.rootHandler)
+	mux.HandleFunc(routeAuthorize, s.authorizeHandler)
+	mux.HandleFunc(routeRedirect, s.redirectHandler)
 
-	go http.ListenAndServe(fmt.Sprintf(":%d", exposePort), mux)
+	var err error
+	s.listener, err = net.Listen("tcp", fmt.Sprintf(":%d", s.exposePort))
+	if err != nil {
+		return fmt.Errorf("listening on port %d: %w", s.exposePort, err)
+	}
+
+	go func() {
+		if serveErr := http.Serve(s.listener, mux); serveErr != nil && serveErr != http.ErrServerClosed {
+			slog.Error("oauth http server error", slog.Any("error", serveErr))
+		}
+	}()
+	return nil
+}
+
+func (s *OAuthService) Health(_ context.Context) platform.Health {
+	status := platform.StatusDown
+	if s.client != nil && s.listener != nil {
+		status = platform.StatusUp
+	}
+	return platform.Health{
+		Name:   s.Name(),
+		Status: status,
+	}
+}
+
+func (s *OAuthService) Stop(_ context.Context) error {
+	if s.listener != nil {
+		return s.listener.Close()
+	}
+	return nil
+}
+
+// Client returns the underlying OAuth2 client. Features type-assert
+// OAuthProvider to *OAuthService to access this.
+func (s *OAuthService) Client() *oauth2.Client {
+	return s.client
 }
 
 // Handlers
@@ -53,13 +103,9 @@ var (
 	loggedInTemplate = `"user:<br />%s<br />connections: <br />%s"`
 )
 
-// rootHandler returns a function that handles the root route by checking if the user is logged in or not.
-// If the user is logged in, it will display the user data and connections.
-// If the user is not logged in, it will display a login button that redirects to the authorize route.
-func rootHandler(w http.ResponseWriter, r *http.Request) {
+func (s *OAuthService) rootHandler(w http.ResponseWriter, r *http.Request) {
 	var body string
 
-	// Retrieve the cookie
 	cookie, err := r.Cookie("session_id")
 	if err != nil {
 		body = fmt.Sprintf(loginTemplate, routeAuthorize)
@@ -68,23 +114,20 @@ func rootHandler(w http.ResponseWriter, r *http.Request) {
 		session, ok := sessions[cookie.Value]
 		sessionsMu.RUnlock()
 		if ok {
-			// Session found, fetch user data
 			var user *discord.OAuth2User
-			user, err = oauthClient.GetUser(session)
+			user, err = s.client.GetUser(session)
 			if err != nil {
 				writeError(w, "error while getting user data", err)
 				return
 			}
 
-			// Fetch connections data
 			var connections []discord.Connection
-			connections, err = oauthClient.GetConnections(session)
+			connections, err = s.client.GetConnections(session)
 			if err != nil {
 				writeError(w, "error while getting connections data", err)
 				return
 			}
 
-			// Format the data
 			userJSON := formatData(user)
 			connectionsJSON := formatData(connections)
 
@@ -97,45 +140,29 @@ func rootHandler(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write([]byte(body))
 }
 
-// authorizeHandler return a function that handles the OAuth2 authorization flow by redirecting the user to the Discord authorization URL.
-// The user will be redirected back to the redirect URL after authorizing the application.
-// It will ask for the following scopes:
-// - User informations
-// - Metadata
-// - Third-party account connections
-// - DM channels
-// - Activities
-func authorizeHandler(w http.ResponseWriter, r *http.Request) {
+func (s *OAuthService) authorizeHandler(w http.ResponseWriter, r *http.Request) {
 	params := oauth2.AuthorizationURLParams{
-		RedirectURI: serverBaseURL + routeRedirect,
+		RedirectURI: s.baseURL + routeRedirect,
 		Scopes: []discord.OAuth2Scope{
-			// User informations
 			discord.OAuth2ScopeIdentify,
-			// Metadata
 			discord.OAuth2ScopeRoleConnectionsWrite,
-			// Third-party account connections
 			discord.OAuth2ScopeConnections,
-			// DM channels
 			discord.OAuth2ScopeGDMJoin,
 		},
 	}
-	http.Redirect(w, r, oauthClient.GenerateAuthorizationURL(params), http.StatusSeeOther)
+	http.Redirect(w, r, s.client.GenerateAuthorizationURL(params), http.StatusSeeOther)
 }
 
-// redirectHandler handles the OAuth2 redirect flow by starting a new session with the authorization code and state.
-// The session is then stored in the sessions map and a cookie is set to keep track of the session.
-func redirectHandler(w http.ResponseWriter, r *http.Request) {
+func (s *OAuthService) redirectHandler(w http.ResponseWriter, r *http.Request) {
 	var (
 		query = r.URL.Query()
 		code  = query.Get("code")
 		state = query.Get("state")
 	)
 
-	// If code and state are not empty, then it means the OAuth2 flow completed successfully
-	// We can start a new session and store it in the sessions map
 	if code != "" && state != "" {
 		identifier := randStr(32)
-		session, _, err := oauthClient.StartSession(code, state)
+		session, _, err := s.client.StartSession(code, state)
 		if err != nil {
 			writeError(w, "error while starting session", err)
 			return
@@ -146,14 +173,11 @@ func redirectHandler(w http.ResponseWriter, r *http.Request) {
 		http.SetCookie(w, &http.Cookie{Name: "session_id", Value: identifier, Path: "/"})
 	}
 	http.Redirect(w, r, routeRoot, http.StatusTemporaryRedirect)
-
 }
 
 // Utils
 
-var (
-	letters = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
-)
+var letters = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
 
 func writeError(w http.ResponseWriter, text string, err error) {
 	w.WriteHeader(http.StatusInternalServerError)

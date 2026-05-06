@@ -1,4 +1,4 @@
-package guild_features
+package feature
 
 import (
 	"errors"

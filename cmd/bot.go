@@ -10,10 +10,8 @@ import (
 	"time"
 
 	"github.com/bil0u/galaxy-os/internal/config"
-	"github.com/bil0u/galaxy-os/internal/features"
-	bot_features "github.com/bil0u/galaxy-os/internal/features/bot"
-	guild_features "github.com/bil0u/galaxy-os/internal/features/guild"
-	"github.com/bil0u/galaxy-os/internal/services"
+	"github.com/bil0u/galaxy-os/internal/feature"
+	"github.com/bil0u/galaxy-os/internal/service"
 	"github.com/disgoorg/disgo"
 	disbot "github.com/disgoorg/disgo/bot"
 	"github.com/disgoorg/disgo/cache"
@@ -49,33 +47,33 @@ var startCmd = &cobra.Command{
 }
 
 type botDef struct {
-	features   *features.Set
+	features   *feature.Set
 	cacheFlags cache.Flags
 	intents    gateway.Intents
 }
 
 var bots = map[string]botDef{
 	"hue": {
-		features: features.NewSet(
-			bot_features.BotInfosFeature,
-			bot_features.LogPermissionsFeature,
-			bot_features.TestFeature,
-			guild_features.BotPresenceFeature,
-			guild_features.SelfAssignRolesFeature,
-			guild_features.DailyMessageFeature,
-			guild_features.SuspiciousInterviewFeature,
+		features: feature.NewSet(
+			feature.BotInfosFeature,
+			feature.LogPermissionsFeature,
+			feature.TestFeature,
+			feature.BotPresenceFeature,
+			feature.SelfAssignRolesFeature,
+			feature.DailyMessageFeature,
+			feature.SuspiciousInterviewFeature,
 		),
 		cacheFlags: cache.FlagGuilds | cache.FlagMembers | cache.FlagRoles,
 		intents:    gateway.IntentGuilds | gateway.IntentGuildMembers,
 	},
 	"kevin": {
-		features: features.NewSet(
-			bot_features.BotInfosFeature,
-			bot_features.LogPermissionsFeature,
-			bot_features.TestFeature,
-			guild_features.BotPresenceFeature,
-			guild_features.SelfAssignRolesFeature,
-			guild_features.DailyMessageFeature,
+		features: feature.NewSet(
+			feature.BotInfosFeature,
+			feature.LogPermissionsFeature,
+			feature.TestFeature,
+			feature.BotPresenceFeature,
+			feature.SelfAssignRolesFeature,
+			feature.DailyMessageFeature,
 		),
 		cacheFlags: cache.FlagGuilds | cache.FlagRoles,
 		intents:    gateway.IntentGuilds,
@@ -100,7 +98,7 @@ func startBot(cmd *cobra.Command, _ []string) error {
 	globalCfg.Version = version
 	globalCfg.Commit = commit
 
-	if _, err := services.InitLogger(logCfg.Level, logCfg.Format, logCfg.AddSource); err != nil {
+	if _, err := service.InitLogger(logCfg.Level, logCfg.Format, logCfg.AddSource); err != nil {
 		return fmt.Errorf("initializing logger: %w", err)
 	}
 
@@ -136,28 +134,28 @@ func startBot(cmd *cobra.Command, _ []string) error {
 	}))
 
 	if enableCron {
-		services.InitCron()
+		service.InitCron()
 	}
 
 	if enableOAuth2 {
 		if err := botCfg.ValidateOAuth(); err != nil {
 			return fmt.Errorf("oauth2 config: %w", err)
 		}
-		services.InitOAuth(botCfg.ApplicationID, botCfg.ClientSecret, botCfg.BaseURL)
+		service.InitOAuth(botCfg.ApplicationID, botCfg.ClientSecret, botCfg.BaseURL)
 	}
 
-	registry := features.NewRegistry(*def.features, botCfg, guilds)
+	registry := feature.NewRegistry(*def.features, botCfg, guilds)
 
-	deps := features.SetupDeps{
-		Bot: features.BotServices{
+	deps := feature.SetupDeps{
+		Bot: feature.BotServices{
 			Client: client,
 			Router: router,
 			Logger: botLogger,
 		},
-		Shared: features.SharedServices{
-			Cron: services.Cron(),
+		Shared: feature.SharedServices{
+			Cron: service.Scheduler(),
 		},
-		Configs: features.Configs{
+		Configs: feature.Configs{
 			Bot:      botCfg,
 			Guilds:   guilds,
 			Global:   globalCfg,
@@ -165,12 +163,12 @@ func startBot(cmd *cobra.Command, _ []string) error {
 		},
 	}
 
-	if err := features.SetupFeatures(*def.features, deps); err != nil {
+	if err := feature.SetupFeatures(*def.features, deps); err != nil {
 		return fmt.Errorf("setting up features: %w", err)
 	}
 
 	if syncCommands {
-		if err := features.SyncCommands(*def.features, client, guilds.IDs(development == "true")); err != nil {
+		if err := feature.SyncCommands(*def.features, client, guilds.IDs(development == "true")); err != nil {
 			return fmt.Errorf("syncing commands: %w", err)
 		}
 	}
@@ -180,16 +178,16 @@ func startBot(cmd *cobra.Command, _ []string) error {
 	}
 
 	if enableCron {
-		services.StartCron()
+		service.StartCron()
 	}
 
 	if enableOAuth2 {
-		services.StartOAuth()
+		service.StartOAuth()
 	}
 
 	defer func() {
 		if enableCron {
-			services.StopCron()
+			service.StopCron()
 		}
 		withTimeout, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()

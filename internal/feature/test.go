@@ -1,7 +1,6 @@
-package bot_features
+package feature
 
 import (
-	"github.com/bil0u/galaxy-os/internal/features"
 	"github.com/bil0u/galaxy-os/internal/locale"
 	"github.com/disgoorg/disgo/discord"
 	"github.com/disgoorg/disgo/handler"
@@ -15,18 +14,18 @@ func (f TestConfig) Validate() error {
 	return nil
 }
 
-var TestFeature = features.New[TestConfig](
-	setupTestFeature,
-	features.WithType(features.BotFeature),
-	features.WithLocalizedName(discord.LocaleFrench, "Test"),
-	features.WithDescription(locale.Text{
+var TestFeature = New[TestConfig](
+	TestSetup,
+	WithType(BotFeature),
+	WithLocalizedName(discord.LocaleFrench, "Test"),
+	WithDescription(locale.Text{
 		discord.LocaleEnglishUS: "Testing feature, do not use",
 		discord.LocaleFrench:    "Test, ne pas utiliser",
 	}),
-	features.WithCommandsToSync(testCommand),
+	WithCommandsToSync(testCommand),
 )
 
-func setupTestFeature(deps features.SetupDeps) error {
+func TestSetup(deps SetupDeps) error {
 	deps.Bot.Router.SlashCommand("/test", TestHandler)
 	deps.Bot.Router.Autocomplete("/test", TestAutocompleteHandler)
 	deps.Bot.Router.ButtonComponent("/test-button", TestComponent)

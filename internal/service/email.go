@@ -1,11 +1,15 @@
-package email
+package service
 
 import (
 	"context"
+	"fmt"
 
+	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/sesv2"
 	"github.com/aws/aws-sdk-go-v2/service/sesv2/types"
 )
+
+var emailClient *sesv2.Client
 
 var (
 	emailSender  = ""
@@ -17,6 +21,23 @@ type AWSEmail struct {
 	subject string
 	emails  []string
 	content *string
+}
+
+func InitEmail(ctx context.Context) (*sesv2.Client, error) {
+	cfg, err := config.LoadDefaultConfig(ctx,
+		config.WithRegion("eu-west-1"),
+		config.WithSharedConfigProfile("serendipe"),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("loading aws config: %w", err)
+	}
+
+	emailClient = sesv2.NewFromConfig(cfg)
+	return emailClient, nil
+}
+
+func EmailClient() *sesv2.Client {
+	return emailClient
 }
 
 func (mail *AWSEmail) Send(ctx context.Context) error {

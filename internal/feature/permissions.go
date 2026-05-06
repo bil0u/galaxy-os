@@ -1,11 +1,10 @@
-package bot_features
+package feature
 
 import (
 	"fmt"
 	"log/slog"
 
 	"github.com/bil0u/galaxy-os/internal/config"
-	"github.com/bil0u/galaxy-os/internal/features"
 	"github.com/bil0u/galaxy-os/internal/locale"
 	"github.com/disgoorg/disgo/discord"
 	"github.com/disgoorg/disgo/rest"
@@ -18,17 +17,17 @@ func (f LogPermissionsConfig) Validate() error {
 	return nil
 }
 
-var LogPermissionsFeature = features.New[LogPermissionsConfig](
-	setupBotPermissionsFeature,
-	features.WithType(features.BotFeature),
-	features.WithLocalizedName(discord.LocaleFrench, "Affiche les Permissions"),
-	features.WithDescription(locale.Text{
+var LogPermissionsFeature = New[LogPermissionsConfig](
+	LogPermissionsSetup,
+	WithType(BotFeature),
+	WithLocalizedName(discord.LocaleFrench, "Affiche les Permissions"),
+	WithDescription(locale.Text{
 		discord.LocaleEnglishUS: "Log the permissions of the bot",
 		discord.LocaleFrench:    "Affiche les permissions du bot",
 	}),
 )
 
-func setupBotPermissionsFeature(deps features.SetupDeps) error {
+func LogPermissionsSetup(deps SetupDeps) error {
 	return nil
 }
 

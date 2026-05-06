@@ -1,4 +1,4 @@
-package sql
+package service
 
 import (
 	"context"
@@ -11,7 +11,7 @@ import (
 
 var pool *pgxpool.Pool
 
-func Init(ctx context.Context, pgURL string) (*pgxpool.Pool, error) {
+func InitSQL(ctx context.Context, pgURL string) (*pgxpool.Pool, error) {
 	poolCfg, err := pgxpool.ParseConfig(pgURL)
 	if err != nil {
 		return nil, fmt.Errorf("parsing connection pool config: %w", err)

@@ -1,11 +1,10 @@
-package guild_features
+package feature
 
 import (
 	"fmt"
 	"log/slog"
 	"slices"
 
-	"github.com/bil0u/galaxy-os/internal/features"
 	"github.com/bil0u/galaxy-os/internal/locale"
 	disbot "github.com/disgoorg/disgo/bot"
 	"github.com/disgoorg/disgo/discord"
@@ -14,14 +13,14 @@ import (
 	"github.com/disgoorg/snowflake/v2"
 )
 
-var SelfAssignRolesFeature = features.New[SelfAssignRolesConfig](
-	setupSelfAssignRolesFeature,
-	features.WithType(features.GuildFeature),
-	features.WithName(locale.Text{
+var SelfAssignRolesFeature = New[SelfAssignRolesConfig](
+	SelfAssignRolesSetup,
+	WithType(GuildFeature),
+	WithName(locale.Text{
 		discord.LocaleEnglishUS: "Self assign roles",
 		discord.LocaleFrench:    "Auto-attribution de rôles",
 	}),
-	features.WithDescription(locale.Text{
+	WithDescription(locale.Text{
 		discord.LocaleEnglishUS: "The bot will assign roles to itself automatically",
 		discord.LocaleFrench:    "Le bot s'attribuera des rôles automatiquement",
 	}),
@@ -44,7 +43,7 @@ func (f SelfAssignRolesConfig) Validate() error {
 	return nil
 }
 
-func setupSelfAssignRolesFeature(deps features.SetupDeps) error {
+func SelfAssignRolesSetup(deps SetupDeps) error {
 	client := deps.Bot.Client
 	registry := deps.Configs.Features
 	botCfg := deps.Configs.Bot
@@ -54,7 +53,7 @@ func setupSelfAssignRolesFeature(deps features.SetupDeps) error {
 	client.AddEventListeners(disbot.NewListenerFunc(func(_ *events.Ready) {
 		restClient := client.Rest
 		for _, guildID := range guilds.IDs(global.Development) {
-			cfg, err := features.GetConfigFrom[SelfAssignRolesConfig](registry, guildID)
+			cfg, err := GetConfigFrom[SelfAssignRolesConfig](registry, guildID)
 			if err != nil {
 				slog.Error("Failed to get self-assign roles config", slog.Any("err", err))
 				continue

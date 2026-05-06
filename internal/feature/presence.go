@@ -1,4 +1,4 @@
-package guild_features
+package feature
 
 import (
 	"context"
@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/bil0u/galaxy-os/internal/config"
-	"github.com/bil0u/galaxy-os/internal/features"
 	"github.com/bil0u/galaxy-os/internal/locale"
 	"github.com/disgoorg/disgo/bot"
 	"github.com/disgoorg/disgo/discord"
@@ -15,11 +14,11 @@ import (
 	"github.com/disgoorg/disgo/gateway"
 )
 
-var BotPresenceFeature = features.New[BotPresenceConfig](
-	setupBotPresenceFeature,
-	features.WithType(features.GuildFeature),
-	features.WithLocalizedName(discord.LocaleFrench, "Présence du bot"),
-	features.WithDescription(locale.Text{
+var BotPresenceFeature = New[BotPresenceConfig](
+	BotPresenceSetup,
+	WithType(GuildFeature),
+	WithLocalizedName(discord.LocaleFrench, "Présence du bot"),
+	WithDescription(locale.Text{
 		discord.LocaleEnglishUS: "Automatically sets the bot presence based on multiple events",
 		discord.LocaleFrench:    "Définit automatiquement la présence du bot en fonction de plusieurs événements",
 	}),
@@ -45,7 +44,7 @@ func (f BotPresenceConfig) Validate() error {
 	return nil
 }
 
-func setupBotPresenceFeature(deps features.SetupDeps) error {
+func BotPresenceSetup(deps SetupDeps) error {
 	client := deps.Bot.Client
 	registry := deps.Configs.Features
 	guilds := deps.Configs.Guilds
@@ -56,9 +55,9 @@ func setupBotPresenceFeature(deps features.SetupDeps) error {
 	return nil
 }
 
-func setPresenceWhenReady(client *bot.Client, registry *features.FeatureRegistry, guilds *config.GuildMap) {
+func setPresenceWhenReady(client *bot.Client, registry *FeatureRegistry, guilds *config.GuildMap) {
 	for guildID := range guilds.All() {
-		cfg, err := features.GetConfigFrom[BotPresenceConfig](registry, guildID)
+		cfg, err := GetConfigFrom[BotPresenceConfig](registry, guildID)
 		if err != nil || !cfg.Enabled {
 			continue
 		}

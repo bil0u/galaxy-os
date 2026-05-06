@@ -1,23 +1,22 @@
-package bot_features
+package feature
 
 import (
 	"fmt"
 
-	"github.com/bil0u/galaxy-os/internal/features"
 	"github.com/bil0u/galaxy-os/internal/locale"
 	"github.com/disgoorg/disgo/discord"
 	"github.com/disgoorg/disgo/handler"
 )
 
-var BotInfosFeature = features.New[BotInfosConfig](
-	setupBotInfosFeature,
-	features.WithType(features.BotFeature),
-	features.WithLocalizedName(discord.LocaleFrench, "Bot Infos"),
-	features.WithDescription(locale.Text{
+var BotInfosFeature = New[BotInfosConfig](
+	BotInfosSetup,
+	WithType(BotFeature),
+	WithLocalizedName(discord.LocaleFrench, "Bot Infos"),
+	WithDescription(locale.Text{
 		discord.LocaleEnglishUS: "Display the bot informations",
 		discord.LocaleFrench:    "Affiche les informations du bot",
 	}),
-	features.WithCommandsToSync(botInfosCommand),
+	WithCommandsToSync(botInfosCommand),
 )
 
 type BotInfosConfig struct{}
@@ -26,7 +25,7 @@ func (f BotInfosConfig) Validate() error {
 	return nil
 }
 
-func setupBotInfosFeature(deps features.SetupDeps) error {
+func BotInfosSetup(deps SetupDeps) error {
 	global := deps.Configs.Global
 
 	deps.Bot.Router.SlashCommand("/botinfos", func(_ discord.SlashCommandInteractionData, e *handler.CommandEvent) error {

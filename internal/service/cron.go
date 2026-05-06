@@ -1,6 +1,9 @@
-package cron
+package service
 
 import (
+	"fmt"
+	"log/slog"
+
 	"github.com/robfig/cron/v3"
 )
 
@@ -24,4 +27,14 @@ func StartCron() {
 func StopCron() {
 	closeCtx := scheduler.Stop()
 	<-closeCtx.Done()
+}
+
+type cronLogger struct{}
+
+func (cl cronLogger) Info(msg string, keysAndValues ...any) {
+	slog.Info(fmt.Sprintf("Cron: %s", msg), keysAndValues...)
+}
+
+func (cl cronLogger) Error(err error, msg string, keysAndValues ...any) {
+	slog.Error(fmt.Sprintf("Cron: %s: %v", msg, err), keysAndValues...)
 }

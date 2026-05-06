@@ -1,40 +1,34 @@
 package feature
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"slices"
 
-	"github.com/bil0u/galaxy-os/internal/locale"
-	disbot "github.com/disgoorg/disgo/bot"
-	"github.com/disgoorg/disgo/discord"
-	"github.com/disgoorg/disgo/events"
+	"github.com/bil0u/galaxy-os/internal/platform"
 	"github.com/disgoorg/disgo/rest"
 	"github.com/disgoorg/snowflake/v2"
 )
 
-var SelfAssignRolesFeature = New[SelfAssignRolesConfig](
-	SelfAssignRolesSetup,
-	WithType(GuildFeature),
-	WithName(locale.Text{
-		discord.LocaleEnglishUS: "Self assign roles",
-		discord.LocaleFrench:    "Auto-attribution de rôles",
-	}),
-	WithDescription(locale.Text{
-		discord.LocaleEnglishUS: "The bot will assign roles to itself automatically",
-		discord.LocaleFrench:    "Le bot s'attribuera des rôles automatiquement",
-	}),
-)
+// SelfAssign assigns configured roles to the bot on startup.
+var SelfAssign = &selfAssign{}
 
-type SelfAssignRolesConfig struct {
+type selfAssign struct {
+	logger  *slog.Logger
+	configs platform.ConfigProvider
+	guildID snowflake.ID
+}
+
+type selfAssignConfig struct {
 	Enabled         bool
 	ClearRolesFirst bool
 	Roles           []snowflake.ID
 }
 
-func (f SelfAssignRolesConfig) Validate() error {
+func (c selfAssignConfig) Validate() error {
 	var errs []error
-	if len(f.Roles) == 0 {
+	if len(c.Roles) == 0 {
 		errs = append(errs, fmt.Errorf("roles are required"))
 	}
 	if len(errs) > 0 {
@@ -43,47 +37,27 @@ func (f SelfAssignRolesConfig) Validate() error {
 	return nil
 }
 
-func SelfAssignRolesSetup(deps SetupDeps) error {
-	client := deps.Bot.Client
-	registry := deps.Configs.Features
-	botCfg := deps.Configs.Bot
-	guilds := deps.Configs.Guilds
-	global := deps.Configs.Global
+func (f *selfAssign) Name() string               { return "self_assign" }
+func (f *selfAssign) Scope() platform.Scope       { return platform.GuildScope }
+func (f *selfAssign) Needs() []platform.ServiceID { return nil }
 
-	client.AddEventListeners(disbot.NewListenerFunc(func(_ *events.Ready) {
-		restClient := client.Rest
-		for _, guildID := range guilds.IDs(global.Development) {
-			cfg, err := GetConfigFrom[SelfAssignRolesConfig](registry, guildID)
-			if err != nil {
-				slog.Error("Failed to get self-assign roles config", slog.Any("err", err))
-				continue
-			}
+func (f *selfAssign) Setup(deps platform.Deps) error {
+	f.logger = deps.Logger
+	f.configs = deps.Configs
+	f.guildID = deps.GuildID
 
-			if !cfg.Enabled {
-				slog.Warn(fmt.Sprintf("Feature 'SelfAssignRoles' is disabled for guild '%s'", guildID))
-				continue
-			}
+	// TODO: self-assign requires gateway client access (bot.NewListenerFunc for events.Ready)
+	// and REST methods not on platform.RestClient (GetCurrentUser, GetRole, AddMemberRole,
+	// RemoveMemberRole, GetMember). The event listener and guild iteration loop are removed;
+	// the framework calls Setup per guild. Wire when gateway/client access is added to Deps.
 
-			existingRoles, err := getAssignedRoles(restClient, guildID, botCfg.ApplicationID)
-			if err != nil {
-				slog.Error("Failed to get assigned roles", slog.Any("err", err))
-				continue
-			}
-
-			if cfg.ClearRolesFirst {
-				slog.Info(fmt.Sprintf("Clearing roles for guild '%s'", guildID))
-				if err := removeBotRoles(restClient, guildID, existingRoles); err != nil {
-					slog.Error("Failed to remove roles", slog.Any("err", err))
-				}
-			}
-
-			if err := assignBotRoles(restClient, guildID, cfg.Roles, existingRoles); err != nil {
-				slog.Error("Failed to assign roles to bot", slog.Any("err", err))
-			}
-		}
-	}))
 	return nil
 }
+
+func (f *selfAssign) Start(ctx context.Context) error { return nil }
+func (f *selfAssign) Stop(ctx context.Context) error  { return nil }
+
+// --- Utility functions for role management ---
 
 func getAssignedRoles(restClient rest.Rest, guildID snowflake.ID, applicationID snowflake.ID) ([]snowflake.ID, error) {
 	botUser, err := restClient.GetMember(guildID, applicationID)

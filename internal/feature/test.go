@@ -1,38 +1,40 @@
 package feature
 
 import (
+	"context"
+
 	"github.com/bil0u/galaxy-os/internal/locale"
+	"github.com/bil0u/galaxy-os/internal/platform"
 	"github.com/disgoorg/disgo/discord"
 	"github.com/disgoorg/disgo/handler"
 )
 
-type TestConfig struct {
+// Test is a testing feature, not intended for production use.
+var Test = &test{}
+
+type test struct{}
+
+type testConfig struct {
 	Foo string
 }
 
-func (f TestConfig) Validate() error {
+func (c testConfig) Validate() error { return nil }
+
+func (f *test) Name() string               { return "test" }
+func (f *test) Scope() platform.Scope       { return platform.BotScope }
+func (f *test) Needs() []platform.ServiceID { return nil }
+
+func (f *test) Setup(deps platform.Deps) error {
+	deps.Commands.SlashCommand("/test", testHandler)
+	deps.Commands.Autocomplete("/test", testAutocompleteHandler)
+	deps.Commands.ButtonComponent("/test-button", testComponentHandler)
 	return nil
 }
 
-var TestFeature = New[TestConfig](
-	TestSetup,
-	WithType(BotFeature),
-	WithLocalizedName(discord.LocaleFrench, "Test"),
-	WithDescription(locale.Text{
-		discord.LocaleEnglishUS: "Testing feature, do not use",
-		discord.LocaleFrench:    "Test, ne pas utiliser",
-	}),
-	WithCommandsToSync(testCommand),
-)
+func (f *test) Start(ctx context.Context) error { return nil }
+func (f *test) Stop(ctx context.Context) error  { return nil }
 
-func TestSetup(deps SetupDeps) error {
-	deps.Bot.Router.SlashCommand("/test", TestHandler)
-	deps.Bot.Router.Autocomplete("/test", TestAutocompleteHandler)
-	deps.Bot.Router.ButtonComponent("/test-button", TestComponent)
-	return nil
-}
-
-func TestComponent(_ discord.ButtonInteractionData, e *handler.ComponentEvent) error {
+func testComponentHandler(e *handler.ComponentEvent) error {
 	return e.UpdateMessage(discord.NewMessageUpdate().WithContent(locale.Text{
 		discord.LocaleEnglishUS: "The text has been updated",
 		discord.LocaleFrench:    "Le texte a été mis à jour",
@@ -68,7 +70,8 @@ var testCommand = discord.SlashCommandCreate{
 	},
 }
 
-func TestHandler(data discord.SlashCommandInteractionData, e *handler.CommandEvent) error {
+func testHandler(e *handler.CommandEvent) error {
+	data := e.SlashCommandInteractionData()
 	return e.CreateMessage(discord.NewMessageCreate().
 		WithContentf(locale.Text{
 			discord.LocaleEnglishUS: "Test command. Choice: %s",
@@ -78,7 +81,7 @@ func TestHandler(data discord.SlashCommandInteractionData, e *handler.CommandEve
 	)
 }
 
-func TestAutocompleteHandler(e *handler.AutocompleteEvent) error {
+func testAutocompleteHandler(e *handler.AutocompleteEvent) error {
 	return e.AutocompleteResult([]discord.AutocompleteChoice{
 		discord.AutocompleteChoiceString{
 			Name:  "1",

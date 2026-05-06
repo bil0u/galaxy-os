@@ -1,35 +1,38 @@
 package feature
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 
 	"github.com/bil0u/galaxy-os/internal/config"
-	"github.com/bil0u/galaxy-os/internal/locale"
+	"github.com/bil0u/galaxy-os/internal/platform"
 	"github.com/disgoorg/disgo/discord"
 	"github.com/disgoorg/disgo/rest"
 	"github.com/disgoorg/snowflake/v2"
 )
 
-type LogPermissionsConfig struct{}
+// Permissions logs the permissions of the bot for each guild.
+var Permissions = &permissions{}
 
-func (f LogPermissionsConfig) Validate() error {
+type permissions struct{}
+
+type permissionsConfig struct{}
+
+func (c permissionsConfig) Validate() error { return nil }
+
+func (f *permissions) Name() string               { return "permissions" }
+func (f *permissions) Scope() platform.Scope       { return platform.BotScope }
+func (f *permissions) Needs() []platform.ServiceID { return nil }
+
+func (f *permissions) Setup(deps platform.Deps) error {
 	return nil
 }
 
-var LogPermissionsFeature = New[LogPermissionsConfig](
-	LogPermissionsSetup,
-	WithType(BotFeature),
-	WithLocalizedName(discord.LocaleFrench, "Affiche les Permissions"),
-	WithDescription(locale.Text{
-		discord.LocaleEnglishUS: "Log the permissions of the bot",
-		discord.LocaleFrench:    "Affiche les permissions du bot",
-	}),
-)
+func (f *permissions) Start(ctx context.Context) error { return nil }
+func (f *permissions) Stop(ctx context.Context) error  { return nil }
 
-func LogPermissionsSetup(deps SetupDeps) error {
-	return nil
-}
+// --- Utility functions used by cmd/bot.go ---
 
 func roleFromAppCommandRole(perm discord.ApplicationCommandPermissionRole, guildRoles []discord.Role) (discord.Role, error) {
 	for _, role := range guildRoles {
@@ -115,6 +118,8 @@ func checkBotPermissions(restClient rest.Rest, applicationID snowflake.ID, guild
 	return rolePermissions, userPermissions, channelPermissions, nil
 }
 
+// LogPermissions logs the bot's permissions for each guild.
+// Called from cmd/bot.go — uses raw rest.Rest and old config types.
 func LogPermissions(restClient rest.Rest, botCfg *config.Bot, guilds *config.GuildMap, devGuildsOnly bool) {
 	for _, guildID := range guilds.IDs(devGuildsOnly) {
 		rolePerms, userPerms, channelOverwrites, err := checkBotPermissions(restClient, botCfg.ApplicationID, guildID)

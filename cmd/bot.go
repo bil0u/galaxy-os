@@ -103,7 +103,7 @@ func (r *muxRegistrar) Autocomplete(path string, h platform.AutocompleteHandler)
 	})
 }
 
-func startBot(cmd *cobra.Command, _ []string) error {
+func startBot(_ *cobra.Command, _ []string) error {
 	def, ok := bots[bot]
 	if !ok {
 		return fmt.Errorf("bot %q not found", bot)
@@ -112,173 +112,252 @@ func startBot(cmd *cobra.Command, _ []string) error {
 		return fmt.Errorf("no features defined for bot %q", bot)
 	}
 
-	globalCfg, logCfg, botCfg, err := config.Init(bot)
-	if err != nil {
-		return fmt.Errorf("initializing config: %w", err)
-	}
-
-	globalCfg.Development = development == "true"
-	globalCfg.Version = version
-	globalCfg.Commit = commit
-
-	if _, err := service.InitLogger(logCfg.Level, logCfg.Format, logCfg.AddSource); err != nil {
-		return fmt.Errorf("initializing logger: %w", err)
-	}
-
-	botLogger := slog.Default().With("bot", bot)
-
-	client, err := disgo.New(botCfg.Token,
-		disbot.WithCacheConfigOpts(cache.WithCaches(def.cacheFlags)),
-		disbot.WithGatewayConfigOpts(
-			gateway.WithIntents(def.intents),
-		),
+	// Capture closed-over state needed by stage closures.
+	// These are populated during stage execution and shared across stages.
+	var (
+		globalCfg *config.Global
+		logCfg    *config.Log
+		botCfg    *config.Bot
+		guilds    *config.GuildMap
+		botLogger *slog.Logger
+		registry  *service.Registry
+		resolver  *config.Resolver
 	)
-	if err != nil {
-		return fmt.Errorf("building discord client: %w", err)
+
+	stages := []platform.Stage{
+		{
+			Name:     "config",
+			Provides: []string{"config"},
+			Run: func(_ context.Context, state *platform.BootState) error {
+				var err error
+				globalCfg, logCfg, botCfg, err = config.Init(bot)
+				if err != nil {
+					return fmt.Errorf("initializing config: %w", err)
+				}
+				globalCfg.Development = development == "true"
+				globalCfg.Version = version
+				globalCfg.Commit = commit
+
+				state.Config.Global = globalCfg
+				state.Config.Bot = botCfg
+				state.Config.Log = logCfg
+				return nil
+			},
+		},
+		{
+			Name:     "logger",
+			Requires: []string{"config"},
+			Provides: []string{"logger"},
+			Run: func(_ context.Context, state *platform.BootState) error {
+				logger, err := service.InitLogger(logCfg.Level, logCfg.Format, logCfg.AddSource)
+				if err != nil {
+					return fmt.Errorf("initializing logger: %w", err)
+				}
+				botLogger = slog.Default().With("bot", bot)
+				state.Obs = &platform.Observability{Logger: logger}
+				return nil
+			},
+		},
+		{
+			Name:     "discord",
+			Requires: []string{"config", "logger"},
+			Provides: []string{"discord"},
+			Run: func(_ context.Context, state *platform.BootState) error {
+				client, err := disgo.New(botCfg.Token,
+					disbot.WithCacheConfigOpts(cache.WithCaches(def.cacheFlags)),
+					disbot.WithGatewayConfigOpts(
+						gateway.WithIntents(def.intents),
+					),
+				)
+				if err != nil {
+					return fmt.Errorf("building discord client: %w", err)
+				}
+
+				router := handler.New()
+				client.AddEventListeners(router)
+				client.AddEventListeners(disbot.NewListenerFunc(func(_ *events.Resumed) {
+					botLogger.Info("gateway reconnected")
+				}))
+
+				state.Client = client
+				state.Router = router
+				return nil
+			},
+		},
+		{
+			Name:     "guilds",
+			Requires: []string{"discord"},
+			Provides: []string{"guilds"},
+			Run: func(ctx context.Context, state *platform.BootState) error {
+				var err error
+				guilds, err = config.InitGuilds(ctx, state.Client.Rest, bot)
+				if err != nil {
+					return fmt.Errorf("initializing guilds config: %w", err)
+				}
+
+				slog.Debug(fmt.Sprintf("Global configuration: %+v", globalCfg))
+				slog.Debug(fmt.Sprintf("Bot configuration: %++v", botCfg))
+				slog.Debug(fmt.Sprintf("Log configuration: %+v", logCfg))
+				slog.Debug(fmt.Sprintf("Guilds configuration: %+v", guilds))
+
+				store := config.NewFileStore(".")
+				resolver = config.NewResolver(store, bot)
+				guildIDs := guilds.IDs(development == "true")
+				resolver.SetGuildIDs(guildIDs)
+				state.GuildIDs = guildIDs
+				return nil
+			},
+		},
+		{
+			Name:     "services",
+			Requires: []string{"config", "guilds"},
+			Provides: []string{"services"},
+			Run: func(ctx context.Context, state *platform.BootState) error {
+				registry = service.NewRegistry()
+				registry.Register(platform.CronService, service.NewCronService())
+
+				if err := botCfg.ValidateOAuth(); err == nil {
+					registry.Register(platform.OAuthService,
+						service.NewOAuthService(botCfg.ApplicationID, botCfg.ClientSecret, botCfg.BaseURL))
+				}
+
+				for _, f := range def.features {
+					registry.Require(f.Needs()...)
+				}
+
+				if err := registry.StartAll(ctx); err != nil {
+					return fmt.Errorf("starting services: %w", err)
+				}
+
+				state.Services = registry
+				return nil
+			},
+		},
+		{
+			Name:     "features",
+			Requires: []string{"discord", "guilds", "services"},
+			Provides: []string{"features"},
+			Run: func(_ context.Context, state *platform.BootState) error {
+				registrar := &muxRegistrar{mux: state.Router}
+				restClient := discordadapter.NewRestAdapter(state.Client.Rest)
+				localeResolver := discordadapter.NewLocaleResolver(discord.LocaleEnglishUS)
+
+				var cronScheduler platform.CronScheduler
+				if svc := registry.Service(platform.CronService); svc != nil {
+					cronScheduler = svc.(*service.CronService)
+				}
+				var oauthProvider platform.OAuthProvider
+				if svc := registry.Service(platform.OAuthService); svc != nil {
+					oauthProvider = svc.(*service.OAuthService)
+				}
+
+				var errs []error
+				for _, f := range def.features {
+					cfgProvider := config.NewProvider(resolver, f.Name())
+					switch f.Scope() {
+					case platform.BotScope:
+						deps := platform.Deps{
+							Logger:   botLogger.With("feature", f.Name()),
+							Rest:     restClient,
+							Commands: registrar,
+							Locale:   localeResolver,
+							Configs:  cfgProvider,
+							BotName:  bot,
+							Cron:     cronScheduler,
+							OAuth:    oauthProvider,
+						}
+						if err := f.Setup(deps); err != nil {
+							errs = append(errs, fmt.Errorf("setting up feature %q: %w", f.Name(), err))
+						}
+					case platform.GuildScope:
+						for _, guildID := range state.GuildIDs {
+							deps := platform.Deps{
+								Logger:   botLogger.With("feature", f.Name(), "guild", guildID),
+								Rest:     restClient,
+								Commands: registrar,
+								Locale:   localeResolver,
+								Configs:  cfgProvider,
+								BotName:  bot,
+								GuildID:  guildID,
+								Cron:     cronScheduler,
+								OAuth:    oauthProvider,
+							}
+							if err := f.Setup(deps); err != nil {
+								errs = append(errs, fmt.Errorf("setting up feature %q for guild %s: %w", f.Name(), guildID, err))
+							}
+						}
+					case platform.CrossGuildScope:
+						deps := platform.Deps{
+							Logger:   botLogger.With("feature", f.Name()),
+							Rest:     restClient,
+							Commands: registrar,
+							Locale:   localeResolver,
+							Configs:  cfgProvider,
+							BotName:  bot,
+							Cron:     cronScheduler,
+							OAuth:    oauthProvider,
+						}
+						if err := f.Setup(deps); err != nil {
+							errs = append(errs, fmt.Errorf("setting up feature %q: %w", f.Name(), err))
+						}
+					}
+				}
+				if err := errors.Join(errs...); err != nil {
+					return fmt.Errorf("setting up features: %w", err)
+				}
+
+				state.Features = def.features
+
+				if syncCommands {
+					slog.Warn("command syncing not yet implemented with new feature framework")
+				}
+				return nil
+			},
+		},
+		{
+			Name:     "gateway",
+			Requires: []string{"features"},
+			Provides: []string{"gateway"},
+			Run: func(ctx context.Context, state *platform.BootState) error {
+				if err := state.Client.OpenGateway(ctx); err != nil {
+					return fmt.Errorf("opening gateway: %w", err)
+				}
+				return nil
+			},
+		},
+		{
+			Name:     "ready",
+			Requires: []string{"gateway"},
+			Run: func(ctx context.Context, state *platform.BootState) error {
+				slog.Info("----- Bot is running. Press CTRL-C to exit -----")
+
+				sig := make(chan os.Signal, 1)
+				signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
+
+				select {
+				case <-sig:
+				case <-ctx.Done():
+				}
+
+				slog.Info("shutting down bot...")
+
+				shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+				defer cancel()
+
+				if err := platform.Shutdown(shutdownCtx, state); err != nil {
+					slog.Error("shutdown completed with errors", slog.Any("error", err))
+				}
+				return nil
+			},
+		},
 	}
 
 	ctx := context.Background()
+	_, err := platform.Run(ctx, platform.BotSpec{
+		Name:     bot,
+		Features: def.features,
+		Intents:  def.intents,
+	}, stages)
 
-	guilds, err := config.InitGuilds(ctx, client.Rest, bot)
-	if err != nil {
-		return fmt.Errorf("initializing guilds config: %w", err)
-	}
-
-	slog.Debug(fmt.Sprintf("Global configuration: %+v", globalCfg))
-	slog.Debug(fmt.Sprintf("Bot configuration: %++v", botCfg))
-	slog.Debug(fmt.Sprintf("Log configuration: %+v", logCfg))
-	slog.Debug(fmt.Sprintf("Guilds configuration: %+v", guilds))
-
-	// Build the config store and resolver for the new ConfigProvider system.
-	store := config.NewFileStore(".")
-	resolver := config.NewResolver(store, bot)
-	guildIDs := guilds.IDs(development == "true")
-	resolver.SetGuildIDs(guildIDs)
-
-	router := handler.New()
-	client.AddEventListeners(router)
-
-	client.AddEventListeners(disbot.NewListenerFunc(func(_ *events.Resumed) {
-		botLogger.Info("gateway reconnected")
-	}))
-
-	// --- Service registry: register available services, collect requirements ---
-	registry := service.NewRegistry()
-	registry.Register(platform.CronService, service.NewCronService())
-
-	// Only register OAuth if the config is valid for it.
-	if err := botCfg.ValidateOAuth(); err == nil {
-		registry.Register(platform.OAuthService,
-			service.NewOAuthService(botCfg.ApplicationID, botCfg.ClientSecret, botCfg.BaseURL))
-	}
-
-	// Collect service requirements from features.
-	for _, f := range def.features {
-		registry.Require(f.Needs()...)
-	}
-
-	// Start only the services that features actually need.
-	if err := registry.StartAll(ctx); err != nil {
-		return fmt.Errorf("starting services: %w", err)
-	}
-
-	registrar := &muxRegistrar{mux: router}
-	restClient := discordadapter.NewRestAdapter(client.Rest)
-	localeResolver := discordadapter.NewLocaleResolver(discord.LocaleEnglishUS)
-
-	// Populate Cron/OAuth in Deps only when the service was started.
-	var cronScheduler platform.CronScheduler
-	if svc := registry.Service(platform.CronService); svc != nil {
-		cronScheduler = svc.(*service.CronService)
-	}
-	var oauthProvider platform.OAuthProvider
-	if svc := registry.Service(platform.OAuthService); svc != nil {
-		oauthProvider = svc.(*service.OAuthService)
-	}
-
-	// Setup features: iterate each feature and call Setup with platform.Deps.
-	// BotScope features are set up once. GuildScope features are set up per guild.
-	var errs []error
-	for _, f := range def.features {
-		cfgProvider := config.NewProvider(resolver, f.Name())
-		switch f.Scope() {
-		case platform.BotScope:
-			deps := platform.Deps{
-				Logger:   botLogger.With("feature", f.Name()),
-				Rest:     restClient,
-				Commands: registrar,
-				Locale:   localeResolver,
-				Configs:  cfgProvider,
-				BotName:  bot,
-				Cron:     cronScheduler,
-				OAuth:    oauthProvider,
-				// TODO: wire Bus, Env when implementations exist
-			}
-			if err := f.Setup(deps); err != nil {
-				errs = append(errs, fmt.Errorf("setting up feature %q: %w", f.Name(), err))
-			}
-		case platform.GuildScope:
-			for _, guildID := range guildIDs {
-				deps := platform.Deps{
-					Logger:   botLogger.With("feature", f.Name(), "guild", guildID),
-					Rest:     restClient,
-					Commands: registrar,
-					Locale:   localeResolver,
-					Configs:  cfgProvider,
-					BotName:  bot,
-					GuildID:  guildID,
-					Cron:     cronScheduler,
-					OAuth:    oauthProvider,
-					// TODO: wire Bus, Env, Guilds when implementations exist
-				}
-				if err := f.Setup(deps); err != nil {
-					errs = append(errs, fmt.Errorf("setting up feature %q for guild %s: %w", f.Name(), guildID, err))
-				}
-			}
-		case platform.CrossGuildScope:
-			deps := platform.Deps{
-				Logger:   botLogger.With("feature", f.Name()),
-				Rest:     restClient,
-				Commands: registrar,
-				Locale:   localeResolver,
-				Configs:  cfgProvider,
-				BotName:  bot,
-				Cron:     cronScheduler,
-				OAuth:    oauthProvider,
-				// TODO: wire Bus, Env, Guilds when implementations exist
-			}
-			if err := f.Setup(deps); err != nil {
-				errs = append(errs, fmt.Errorf("setting up feature %q: %w", f.Name(), err))
-			}
-		}
-	}
-	if err := errors.Join(errs...); err != nil {
-		return fmt.Errorf("setting up features: %w", err)
-	}
-
-	// TODO: command syncing was previously handled by feature.SyncCommands.
-	// Re-implement when features declare their command creates via platform.Feature.
-	if syncCommands {
-		slog.Warn("command syncing not yet implemented with new feature framework")
-	}
-
-	if err := client.OpenGateway(ctx); err != nil {
-		return fmt.Errorf("opening gateway: %w", err)
-	}
-
-	defer func() {
-		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
-		if stopErr := registry.StopAll(shutdownCtx); stopErr != nil {
-			slog.Error("error stopping services", slog.Any("error", stopErr))
-		}
-		client.Close(shutdownCtx)
-	}()
-
-	slog.Info("----- Bot is running 🚀 Press CTRL-C to exit -----")
-	s := make(chan os.Signal, 1)
-	signal.Notify(s, syscall.SIGINT, syscall.SIGTERM)
-	<-s
-	slog.Info("Shutting down bot...")
-	return nil
+	return err
 }

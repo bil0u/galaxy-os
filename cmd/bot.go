@@ -154,6 +154,12 @@ func startBot(cmd *cobra.Command, _ []string) error {
 	slog.Debug(fmt.Sprintf("Log configuration: %+v", logCfg))
 	slog.Debug(fmt.Sprintf("Guilds configuration: %+v", guilds))
 
+	// Build the config store and resolver for the new ConfigProvider system.
+	store := config.NewFileStore(".")
+	resolver := config.NewResolver(store, bot)
+	guildIDs := guilds.IDs(development == "true")
+	resolver.SetGuildIDs(guildIDs)
+
 	router := handler.New()
 	client.AddEventListeners(router)
 
@@ -177,15 +183,16 @@ func startBot(cmd *cobra.Command, _ []string) error {
 	// Setup features: iterate each feature and call Setup with platform.Deps.
 	// BotScope features are set up once. GuildScope features are set up per guild.
 	var errs []error
-	guildIDs := guilds.IDs(development == "true")
 	for _, f := range def.features {
+		cfgProvider := config.NewProvider(resolver, f.Name())
 		switch f.Scope() {
 		case platform.BotScope:
 			deps := platform.Deps{
 				Logger:   botLogger.With("feature", f.Name()),
 				Commands: registrar,
+				Configs:  cfgProvider,
 				BotName:  bot,
-				// TODO: wire Locale, Bus, Configs, Env, Rest when implementations exist
+				// TODO: wire Locale, Bus, Env, Rest when implementations exist
 			}
 			if err := f.Setup(deps); err != nil {
 				errs = append(errs, fmt.Errorf("setting up feature %q: %w", f.Name(), err))
@@ -195,9 +202,10 @@ func startBot(cmd *cobra.Command, _ []string) error {
 				deps := platform.Deps{
 					Logger:   botLogger.With("feature", f.Name(), "guild", guildID),
 					Commands: registrar,
+					Configs:  cfgProvider,
 					BotName:  bot,
 					GuildID:  guildID,
-					// TODO: wire Locale, Bus, Configs, Env, Rest, Guilds when implementations exist
+					// TODO: wire Locale, Bus, Env, Rest, Guilds when implementations exist
 				}
 				if err := f.Setup(deps); err != nil {
 					errs = append(errs, fmt.Errorf("setting up feature %q for guild %s: %w", f.Name(), guildID, err))
@@ -207,8 +215,9 @@ func startBot(cmd *cobra.Command, _ []string) error {
 			deps := platform.Deps{
 				Logger:   botLogger.With("feature", f.Name()),
 				Commands: registrar,
+				Configs:  cfgProvider,
 				BotName:  bot,
-				// TODO: wire Locale, Bus, Configs, Env, Rest, Guilds when implementations exist
+				// TODO: wire Locale, Bus, Env, Rest, Guilds when implementations exist
 			}
 			if err := f.Setup(deps); err != nil {
 				errs = append(errs, fmt.Errorf("setting up feature %q: %w", f.Name(), err))

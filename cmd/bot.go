@@ -81,24 +81,42 @@ var bots = map[string]botDef{
 // muxRegistrar adapts handler.Mux to platform.Registrar.
 // disgo v0.19.3 handler types include a typed data parameter;
 // the platform.Registrar signatures omit it for simplicity.
+// Each handler wrapper includes panic recovery so a panicking
+// feature handler is logged and the bot continues running.
 type muxRegistrar struct {
-	mux *handler.Mux
+	mux    *handler.Mux
+	logger *slog.Logger
 }
 
 func (r *muxRegistrar) SlashCommand(path string, h platform.SlashCommandHandler) {
 	r.mux.SlashCommand(path, func(_ discord.SlashCommandInteractionData, e *handler.CommandEvent) error {
+		defer func() {
+			if rec := recover(); rec != nil {
+				r.logger.Error("panic in slash command handler", slog.String("path", path), slog.Any("panic", rec))
+			}
+		}()
 		return h(e)
 	})
 }
 
 func (r *muxRegistrar) ButtonComponent(customID string, h platform.ButtonComponentHandler) {
 	r.mux.ButtonComponent(customID, func(_ discord.ButtonInteractionData, e *handler.ComponentEvent) error {
+		defer func() {
+			if rec := recover(); rec != nil {
+				r.logger.Error("panic in button component handler", slog.String("custom_id", customID), slog.Any("panic", rec))
+			}
+		}()
 		return h(e)
 	})
 }
 
 func (r *muxRegistrar) Autocomplete(path string, h platform.AutocompleteHandler) {
 	r.mux.Autocomplete(path, func(e *handler.AutocompleteEvent) error {
+		defer func() {
+			if rec := recover(); rec != nil {
+				r.logger.Error("panic in autocomplete handler", slog.String("path", path), slog.Any("panic", rec))
+			}
+		}()
 		return h(e)
 	})
 }
@@ -115,13 +133,14 @@ func startBot(_ *cobra.Command, _ []string) error {
 	// Capture closed-over state needed by stage closures.
 	// These are populated during stage execution and shared across stages.
 	var (
-		globalCfg *config.Global
-		logCfg    *config.Log
-		botCfg    *config.Bot
-		guilds    *config.GuildMap
-		botLogger *slog.Logger
-		registry  *service.Registry
-		resolver  *config.Resolver
+		globalCfg  *config.Global
+		logCfg     *config.Log
+		botCfg     *config.Bot
+		guilds     *config.GuildMap
+		botLogger  *slog.Logger
+		registry   *service.Registry
+		resolver   *config.Resolver
+		aggregator *service.Aggregator
 	)
 
 	stages := []platform.Stage{
@@ -231,7 +250,22 @@ func startBot(_ *cobra.Command, _ []string) error {
 					return fmt.Errorf("starting services: %w", err)
 				}
 
+				aggregator = service.NewAggregator()
+				for _, h := range registry.Health(ctx) {
+					name := h.Name
+					aggregator.Register(name, func(ctx context.Context) platform.Health {
+						// Delegate to the registry's per-service health at call time.
+						for _, sh := range registry.Health(ctx) {
+							if sh.Name == name {
+								return sh
+							}
+						}
+						return platform.Health{Name: name, Status: platform.StatusDown}
+					})
+				}
+
 				state.Services = registry
+				state.Health = aggregator
 				return nil
 			},
 		},
@@ -240,9 +274,14 @@ func startBot(_ *cobra.Command, _ []string) error {
 			Requires: []string{"discord", "guilds", "services"},
 			Provides: []string{"features"},
 			Run: func(_ context.Context, state *platform.BootState) error {
-				registrar := &muxRegistrar{mux: state.Router}
+				registrar := &muxRegistrar{mux: state.Router, logger: botLogger}
 				restClient := discordadapter.NewRestAdapter(state.Client.Rest)
 				localeResolver := discordadapter.NewLocaleResolver(discord.LocaleEnglishUS)
+
+				env := platform.Prod
+				if development == "true" {
+					env = platform.Dev
+				}
 
 				var cronScheduler platform.CronScheduler
 				if svc := registry.Service(platform.CronService); svc != nil {
@@ -264,6 +303,8 @@ func startBot(_ *cobra.Command, _ []string) error {
 							Commands: registrar,
 							Locale:   localeResolver,
 							Configs:  cfgProvider,
+							Bus:      platform.NoBus,
+							Env:      env,
 							BotName:  bot,
 							Cron:     cronScheduler,
 							OAuth:    oauthProvider,
@@ -279,6 +320,8 @@ func startBot(_ *cobra.Command, _ []string) error {
 								Commands: registrar,
 								Locale:   localeResolver,
 								Configs:  cfgProvider,
+								Bus:      platform.NoBus,
+								Env:      env,
 								BotName:  bot,
 								GuildID:  guildID,
 								Cron:     cronScheduler,
@@ -295,6 +338,8 @@ func startBot(_ *cobra.Command, _ []string) error {
 							Commands: registrar,
 							Locale:   localeResolver,
 							Configs:  cfgProvider,
+							Bus:      platform.NoBus,
+							Env:      env,
 							BotName:  bot,
 							Guilds:   state.Guilds.Accessor(),
 							Cron:     cronScheduler,

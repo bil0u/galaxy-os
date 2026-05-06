@@ -38,6 +38,7 @@ type BootState struct {
 	Guilds   GuildManager
 	GuildIDs []snowflake.ID
 	Services ServiceRegistry
+	Health   HealthAggregator
 	Features []Feature
 }
 

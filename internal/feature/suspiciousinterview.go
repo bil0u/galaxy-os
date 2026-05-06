@@ -1,10 +1,9 @@
-package guild_features
+package feature
 
 import (
 	"fmt"
 	"log/slog"
 
-	"github.com/bil0u/galaxy-os/internal/features"
 	"github.com/bil0u/galaxy-os/internal/locale"
 	disbot "github.com/disgoorg/disgo/bot"
 	"github.com/disgoorg/disgo/discord"
@@ -48,25 +47,25 @@ func (f SuspiciousInterviewConfig) Validate() error {
 	return nil
 }
 
-var SuspiciousInterviewFeature = features.New[SuspiciousInterviewConfig](
-	setupSuspiciousInterviewFeature,
-	features.WithType(features.GuildFeature),
-	features.WithName(locale.Text{
+var SuspiciousInterviewFeature = New[SuspiciousInterviewConfig](
+	SuspiciousInterviewSetup,
+	WithType(GuildFeature),
+	WithName(locale.Text{
 		discord.LocaleEnglishUS: "Suspicious Role Interview",
 		discord.LocaleFrench:    "Entretien des rôles suspects",
 	}),
-	features.WithDescription(locale.Text{
+	WithDescription(locale.Text{
 		discord.LocaleEnglishUS: "Interview users with suspicious roles with a set of questions, and assign them a role based on their answers",
 		discord.LocaleFrench:    "Interviewer les utilisateurs avec des rôles suspects, et leur attribuer un rôle en fonction de leurs réponses",
 	}),
 )
 
-func setupSuspiciousInterviewFeature(deps features.SetupDeps) error {
+func SuspiciousInterviewSetup(deps SetupDeps) error {
 	client := deps.Bot.Client
 	registry := deps.Configs.Features
 
 	mainLogic := func(member discord.Member) {
-		cfg, err := features.GetConfigFrom[SuspiciousInterviewConfig](registry, member.GuildID)
+		cfg, err := GetConfigFrom[SuspiciousInterviewConfig](registry, member.GuildID)
 		if err != nil || !cfg.Enabled {
 			slog.Warn(fmt.Sprintf("Feature 'SuspiciousInterview' is disabled for guild '%s'", member.GuildID))
 			return

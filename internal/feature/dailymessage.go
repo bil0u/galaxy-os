@@ -1,22 +1,21 @@
-package guild_features
+package feature
 
 import (
 	"fmt"
 	"log/slog"
 	"regexp"
 
-	"github.com/bil0u/galaxy-os/internal/features"
 	"github.com/bil0u/galaxy-os/internal/locale"
 	"github.com/disgoorg/disgo/bot"
 	"github.com/disgoorg/disgo/discord"
 	"github.com/disgoorg/snowflake/v2"
 )
 
-var DailyMessageFeature = features.New[DailyMessageConfig](
-	setupDailyMessageFeature,
-	features.WithType(features.GuildFeature),
-	features.WithLocalizedName(discord.LocaleFrench, "Message du jour"),
-	features.WithDescription(locale.Text{
+var DailyMessageFeature = New[DailyMessageConfig](
+	DailyMessageSetup,
+	WithType(GuildFeature),
+	WithLocalizedName(discord.LocaleFrench, "Message du jour"),
+	WithDescription(locale.Text{
 		discord.LocaleEnglishUS: "Send a message every day at a specific time",
 		discord.LocaleFrench:    "Envoie un message tous les jours à une heure spécifique",
 	}),
@@ -51,7 +50,7 @@ func (cfg DailyMessageConfig) getCronSchdule() (string, error) {
 	return fmt.Sprintf("%s %s * * *", match[2], match[1]), nil
 }
 
-func setupDailyMessageFeature(deps features.SetupDeps) error {
+func DailyMessageSetup(deps SetupDeps) error {
 	if deps.Shared.Cron == nil {
 		slog.Warn("Cron not available, skipping DailyMessage setup")
 		return nil
@@ -64,7 +63,7 @@ func setupDailyMessageFeature(deps features.SetupDeps) error {
 	var errs []error
 	for guildID, guildConfig := range guilds.All() {
 
-		cfg, err := features.GetConfigFrom[DailyMessageConfig](registry, guildID)
+		cfg, err := GetConfigFrom[DailyMessageConfig](registry, guildID)
 		if err != nil {
 			errs = append(errs, fmt.Errorf("feature config not found: %w", err))
 			continue
@@ -99,11 +98,11 @@ var dailyMessageTemplate = locale.Text{
 	discord.LocaleFrench:    "Bonjour %s! Ceci est votre message quotidien.",
 }
 
-func dailyMessageJob(client *bot.Client, registry *features.FeatureRegistry, guildID snowflake.ID) func() {
+func dailyMessageJob(client *bot.Client, registry *FeatureRegistry, guildID snowflake.ID) func() {
 	return func() {
 		slog.Info("Running daily message job", slog.Any("guildID", guildID))
 
-		cfg, err := features.GetConfigFrom[DailyMessageConfig](registry, guildID)
+		cfg, err := GetConfigFrom[DailyMessageConfig](registry, guildID)
 		if err != nil || !cfg.Enabled {
 			slog.Warn(fmt.Sprintf("Feature 'DailyMessage' is disabled for guild '%s'", guildID))
 			return

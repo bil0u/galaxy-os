@@ -1,13 +1,50 @@
-package oauth
+package service
 
 import (
+	"encoding/json"
 	"fmt"
+	"log/slog"
+	"math/rand"
 	"net/http"
 	"sync"
+	"time"
 
 	"github.com/disgoorg/disgo/discord"
 	"github.com/disgoorg/disgo/oauth2"
+	"github.com/disgoorg/disgo/rest"
+	"github.com/disgoorg/snowflake/v2"
 )
+
+var (
+	oauthClient    *oauth2.Client
+	serverBaseURL  string
+	exposePort     = 42000
+	routeRoot      = "/oauth2"
+	routeAuthorize = "/oauth2/authorize"
+	routeRedirect  = "/oauth2/redirect"
+)
+
+func InitOAuth(applicationID snowflake.ID, clientSecret, baseURL string) *oauth2.Client {
+	serverBaseURL = baseURL
+	clientOpts := oauth2.WithRestClientConfigOpts(rest.WithHTTPClient(http.DefaultClient))
+	oauthClient = oauth2.New(applicationID, clientSecret, clientOpts)
+	return oauthClient
+}
+
+func OAuthClient() *oauth2.Client {
+	return oauthClient
+}
+
+func StartOAuth() {
+	mux := http.NewServeMux()
+	mux.HandleFunc(routeRoot, rootHandler)
+	mux.HandleFunc(routeAuthorize, authorizeHandler)
+	mux.HandleFunc(routeRedirect, redirectHandler)
+
+	go http.ListenAndServe(fmt.Sprintf(":%d", exposePort), mux)
+}
+
+// Handlers
 
 var (
 	sessionsMu       sync.RWMutex
@@ -110,4 +147,34 @@ func redirectHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	http.Redirect(w, r, routeRoot, http.StatusTemporaryRedirect)
 
+}
+
+// Utils
+
+var (
+	letters = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
+)
+
+func writeError(w http.ResponseWriter, text string, err error) {
+	w.WriteHeader(http.StatusInternalServerError)
+	_, _ = w.Write([]byte(text + ": " + err.Error()))
+}
+
+func randStr(n int) string {
+	var rng = rand.New(rand.NewSource(time.Now().UnixNano()))
+	b := make([]rune, n)
+	for i := range b {
+		b[i] = letters[rng.Intn(len(letters))]
+	}
+	return string(b)
+}
+
+func formatData(data any) []byte {
+	var formatted []byte
+	formatted, err := json.MarshalIndent(data, "<br />", "&ensp;")
+	if err != nil {
+		slog.Error("Failed to format data", slog.Any("data", data), slog.Any("error", err))
+		return nil
+	}
+	return formatted
 }

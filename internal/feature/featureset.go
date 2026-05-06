@@ -1,4 +1,4 @@
-package features
+package feature
 
 func NewSet(features ...Feature) *Set {
 	fs := Set{}

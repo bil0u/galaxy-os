@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/bil0u/galaxy-os/internal/config"
+	discordadapter "github.com/bil0u/galaxy-os/internal/discord"
 	"github.com/bil0u/galaxy-os/internal/feature"
 	"github.com/bil0u/galaxy-os/internal/platform"
 	"github.com/bil0u/galaxy-os/internal/service"
@@ -182,6 +183,8 @@ func startBot(cmd *cobra.Command, _ []string) error {
 	}
 
 	registrar := &muxRegistrar{mux: router}
+	restClient := discordadapter.NewRestAdapter(client.Rest)
+	localeResolver := discordadapter.NewLocaleResolver(discord.LocaleEnglishUS)
 
 	// Populate Cron/OAuth in Deps only when the service was started.
 	var cronScheduler platform.CronScheduler
@@ -202,12 +205,14 @@ func startBot(cmd *cobra.Command, _ []string) error {
 		case platform.BotScope:
 			deps := platform.Deps{
 				Logger:   botLogger.With("feature", f.Name()),
+				Rest:     restClient,
 				Commands: registrar,
+				Locale:   localeResolver,
 				Configs:  cfgProvider,
 				BotName:  bot,
 				Cron:     cronScheduler,
 				OAuth:    oauthProvider,
-				// TODO: wire Locale, Bus, Env, Rest when implementations exist
+				// TODO: wire Bus, Env when implementations exist
 			}
 			if err := f.Setup(deps); err != nil {
 				errs = append(errs, fmt.Errorf("setting up feature %q: %w", f.Name(), err))
@@ -216,13 +221,15 @@ func startBot(cmd *cobra.Command, _ []string) error {
 			for _, guildID := range guildIDs {
 				deps := platform.Deps{
 					Logger:   botLogger.With("feature", f.Name(), "guild", guildID),
+					Rest:     restClient,
 					Commands: registrar,
+					Locale:   localeResolver,
 					Configs:  cfgProvider,
 					BotName:  bot,
 					GuildID:  guildID,
 					Cron:     cronScheduler,
 					OAuth:    oauthProvider,
-					// TODO: wire Locale, Bus, Env, Rest, Guilds when implementations exist
+					// TODO: wire Bus, Env, Guilds when implementations exist
 				}
 				if err := f.Setup(deps); err != nil {
 					errs = append(errs, fmt.Errorf("setting up feature %q for guild %s: %w", f.Name(), guildID, err))
@@ -231,12 +238,14 @@ func startBot(cmd *cobra.Command, _ []string) error {
 		case platform.CrossGuildScope:
 			deps := platform.Deps{
 				Logger:   botLogger.With("feature", f.Name()),
+				Rest:     restClient,
 				Commands: registrar,
+				Locale:   localeResolver,
 				Configs:  cfgProvider,
 				BotName:  bot,
 				Cron:     cronScheduler,
 				OAuth:    oauthProvider,
-				// TODO: wire Locale, Bus, Env, Rest, Guilds when implementations exist
+				// TODO: wire Bus, Env, Guilds when implementations exist
 			}
 			if err := f.Setup(deps); err != nil {
 				errs = append(errs, fmt.Errorf("setting up feature %q: %w", f.Name(), err))

@@ -11,9 +11,10 @@ import (
 	"time"
 
 	"github.com/bil0u/galaxy-os/internal/config"
+	"github.com/bil0u/galaxy-os/internal/contracts"
 	discordadapter "github.com/bil0u/galaxy-os/internal/discord"
 	"github.com/bil0u/galaxy-os/internal/feature"
-	"github.com/bil0u/galaxy-os/internal/contracts"
+	"github.com/bil0u/galaxy-os/internal/i18n"
 	"github.com/bil0u/galaxy-os/internal/service"
 	"github.com/disgoorg/disgo"
 	disbot "github.com/disgoorg/disgo/bot"
@@ -276,7 +277,7 @@ func startBot(_ *cobra.Command, _ []string) error {
 			Run: func(ctx context.Context, state *contracts.BootState) error {
 				registrar := &muxRegistrar{mux: state.Router, logger: botLogger}
 				restClient := discordadapter.NewRestAdapter(state.Client.Rest)
-				localeResolver := discordadapter.NewLocaleResolver(discord.LocaleEnglishUS)
+				localeResolver := i18n.NewLocaleResolver(discord.LocaleEnglishUS)
 
 				env := contracts.Prod
 				if development == "true" {

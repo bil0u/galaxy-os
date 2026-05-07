@@ -1,4 +1,4 @@
-package discord
+package i18n
 
 import (
 	"github.com/disgoorg/disgo/discord"

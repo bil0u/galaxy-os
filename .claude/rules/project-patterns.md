@@ -17,3 +17,4 @@
 - Discord IDs: always `snowflake.ID`, never raw `string` or `uint64`
 - Functional options pattern for constructors with optional config (see `featureOption`)
 - Unexported by default — only export what's part of the package's public API
+- Feature entrypoint: always `feature.go` — contains `var Feature`, the struct type, and lifecycle methods (Setup/Start/Stop). Helper types and logic go in separate files

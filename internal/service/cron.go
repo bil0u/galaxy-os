@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/bil0u/galaxy-os/internal/platform"
+	"github.com/bil0u/galaxy-os/internal/contracts"
 	"github.com/robfig/cron/v3"
 )
 
-// CronService wraps robfig/cron as a platform.Service and platform.CronScheduler.
+// CronService wraps robfig/cron as a contracts.Service and contracts.CronScheduler.
 type CronService struct {
 	scheduler *cron.Cron
 }
@@ -29,12 +29,12 @@ func (s *CronService) Start(_ context.Context) error {
 	return nil
 }
 
-func (s *CronService) Health(_ context.Context) platform.Health {
-	status := platform.StatusDown
+func (s *CronService) Health(_ context.Context) contracts.Health {
+	status := contracts.StatusDown
 	if s.scheduler != nil {
-		status = platform.StatusUp
+		status = contracts.StatusUp
 	}
-	return platform.Health{
+	return contracts.Health{
 		Name:   s.Name(),
 		Status: status,
 	}

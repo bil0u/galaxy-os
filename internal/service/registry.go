@@ -5,35 +5,35 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/bil0u/galaxy-os/internal/platform"
+	"github.com/bil0u/galaxy-os/internal/contracts"
 )
 
-// Registry implements platform.ServiceRegistry with demand-driven activation.
+// Registry implements contracts.ServiceRegistry with demand-driven activation.
 // Services are registered as available, then features declare what they need
 // via Require. Only required services are started.
 type Registry struct {
-	available map[platform.ServiceID]platform.Service
-	required  map[platform.ServiceID]bool
-	started   []platform.Service
-	byID      map[platform.ServiceID]platform.Service // started services for lookup
+	available map[contracts.ServiceID]contracts.Service
+	required  map[contracts.ServiceID]bool
+	started   []contracts.Service
+	byID      map[contracts.ServiceID]contracts.Service // started services for lookup
 }
 
 // NewRegistry creates an empty Registry.
 func NewRegistry() *Registry {
 	return &Registry{
-		available: make(map[platform.ServiceID]platform.Service),
-		required:  make(map[platform.ServiceID]bool),
-		byID:      make(map[platform.ServiceID]platform.Service),
+		available: make(map[contracts.ServiceID]contracts.Service),
+		required:  make(map[contracts.ServiceID]bool),
+		byID:      make(map[contracts.ServiceID]contracts.Service),
 	}
 }
 
 // Register adds a service as available for activation.
-func (r *Registry) Register(id platform.ServiceID, svc platform.Service) {
+func (r *Registry) Register(id contracts.ServiceID, svc contracts.Service) {
 	r.available[id] = svc
 }
 
 // Require marks services as needed. Called once per feature with its Needs().
-func (r *Registry) Require(ids ...platform.ServiceID) {
+func (r *Registry) Require(ids ...contracts.ServiceID) {
 	for _, id := range ids {
 		r.required[id] = true
 	}
@@ -43,11 +43,11 @@ func (r *Registry) Require(ids ...platform.ServiceID) {
 // Services are started in registration order; any failure is fatal.
 func (r *Registry) StartAll(ctx context.Context) error {
 	// Iterate in a deterministic order based on ServiceID constants.
-	order := []platform.ServiceID{
-		platform.SQLService,
-		platform.EmailService,
-		platform.CronService,
-		platform.OAuthService,
+	order := []contracts.ServiceID{
+		contracts.SQLService,
+		contracts.EmailService,
+		contracts.CronService,
+		contracts.OAuthService,
 	}
 
 	for _, id := range order {
@@ -85,8 +85,8 @@ func (r *Registry) StopAll(ctx context.Context) error {
 }
 
 // Health returns health for all started services.
-func (r *Registry) Health(ctx context.Context) []platform.Health {
-	result := make([]platform.Health, 0, len(r.started))
+func (r *Registry) Health(ctx context.Context) []contracts.Health {
+	result := make([]contracts.Health, 0, len(r.started))
 	for _, svc := range r.started {
 		result = append(result, svc.Health(ctx))
 	}
@@ -94,6 +94,6 @@ func (r *Registry) Health(ctx context.Context) []platform.Health {
 }
 
 // Service returns a started service by ID, or nil if not started.
-func (r *Registry) Service(id platform.ServiceID) platform.Service {
+func (r *Registry) Service(id contracts.ServiceID) contracts.Service {
 	return r.byID[id]
 }

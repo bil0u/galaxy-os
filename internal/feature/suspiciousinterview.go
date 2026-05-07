@@ -6,7 +6,7 @@ import (
 	"log/slog"
 
 	"github.com/bil0u/galaxy-os/internal/locale"
-	"github.com/bil0u/galaxy-os/internal/platform"
+	"github.com/bil0u/galaxy-os/internal/contracts"
 	"github.com/disgoorg/disgo/discord"
 	"github.com/disgoorg/disgo/rest"
 	"github.com/disgoorg/snowflake/v2"
@@ -18,7 +18,7 @@ var SuspiciousInterview = &suspiciousInterview{}
 
 type suspiciousInterview struct {
 	logger  *slog.Logger
-	configs platform.ConfigProvider
+	configs contracts.ConfigProvider
 	guildID snowflake.ID
 }
 
@@ -58,17 +58,17 @@ func (c suspiciousInterviewConfig) Validate() error {
 }
 
 func (f *suspiciousInterview) Name() string               { return "suspicious_interview" }
-func (f *suspiciousInterview) Scope() platform.Scope       { return platform.GuildScope }
-func (f *suspiciousInterview) Needs() []platform.ServiceID { return nil }
+func (f *suspiciousInterview) Scope() contracts.Scope       { return contracts.GuildScope }
+func (f *suspiciousInterview) Needs() []contracts.ServiceID { return nil }
 
-func (f *suspiciousInterview) Setup(deps platform.Deps) error {
+func (f *suspiciousInterview) Setup(deps contracts.Deps) error {
 	f.logger = deps.Logger
 	f.configs = deps.Configs
 	f.guildID = deps.GuildID
 
 	// TODO: suspicious interview requires gateway client access
 	// (bot.NewListenerFunc for events.GuildMemberUpdate and events.GuildMemberJoin)
-	// and REST methods not on platform.RestClient (GetGuild).
+	// and REST methods not on contracts.RestClient (GetGuild).
 	// Wire when gateway/client access is added to Deps.
 
 	return nil

@@ -10,7 +10,7 @@ import (
 	"net/http"
 	"sync"
 
-	"github.com/bil0u/galaxy-os/internal/platform"
+	"github.com/bil0u/galaxy-os/internal/contracts"
 	"github.com/disgoorg/disgo/discord"
 	"github.com/disgoorg/disgo/oauth2"
 	"github.com/disgoorg/disgo/rest"
@@ -23,7 +23,7 @@ var (
 	routeRedirect  = "/oauth2/redirect"
 )
 
-// OAuthService wraps disgo's OAuth2 client as a platform.Service and platform.OAuthProvider.
+// OAuthService wraps disgo's OAuth2 client as a contracts.Service and contracts.OAuthProvider.
 type OAuthService struct {
 	applicationID snowflake.ID
 	clientSecret  string
@@ -69,12 +69,12 @@ func (s *OAuthService) Start(_ context.Context) error {
 	return nil
 }
 
-func (s *OAuthService) Health(_ context.Context) platform.Health {
-	status := platform.StatusDown
+func (s *OAuthService) Health(_ context.Context) contracts.Health {
+	status := contracts.StatusDown
 	if s.client != nil && s.listener != nil {
-		status = platform.StatusUp
+		status = contracts.StatusUp
 	}
-	return platform.Health{
+	return contracts.Health{
 		Name:   s.Name(),
 		Status: status,
 	}

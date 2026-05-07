@@ -13,7 +13,7 @@ import (
 	"github.com/bil0u/galaxy-os/internal/config"
 	discordadapter "github.com/bil0u/galaxy-os/internal/discord"
 	"github.com/bil0u/galaxy-os/internal/feature"
-	"github.com/bil0u/galaxy-os/internal/platform"
+	"github.com/bil0u/galaxy-os/internal/contracts"
 	"github.com/bil0u/galaxy-os/internal/service"
 	"github.com/disgoorg/disgo"
 	disbot "github.com/disgoorg/disgo/bot"
@@ -45,14 +45,14 @@ var startCmd = &cobra.Command{
 }
 
 type botDef struct {
-	features   []platform.Feature
+	features   []contracts.Feature
 	cacheFlags cache.Flags
 	intents    gateway.Intents
 }
 
 var bots = map[string]botDef{
 	"hue": {
-		features: []platform.Feature{
+		features: []contracts.Feature{
 			feature.Info,
 			feature.Permissions,
 			feature.Test,
@@ -65,7 +65,7 @@ var bots = map[string]botDef{
 		intents:    gateway.IntentGuilds | gateway.IntentGuildMembers,
 	},
 	"kevin": {
-		features: []platform.Feature{
+		features: []contracts.Feature{
 			feature.Info,
 			feature.Permissions,
 			feature.Test,
@@ -78,9 +78,9 @@ var bots = map[string]botDef{
 	},
 }
 
-// muxRegistrar adapts handler.Mux to platform.Registrar.
+// muxRegistrar adapts handler.Mux to contracts.Registrar.
 // disgo v0.19.3 handler types include a typed data parameter;
-// the platform.Registrar signatures omit it for simplicity.
+// the contracts.Registrar signatures omit it for simplicity.
 // Each handler wrapper includes panic recovery so a panicking
 // feature handler is logged and the bot continues running.
 type muxRegistrar struct {
@@ -88,7 +88,7 @@ type muxRegistrar struct {
 	logger *slog.Logger
 }
 
-func (r *muxRegistrar) SlashCommand(path string, h platform.SlashCommandHandler) {
+func (r *muxRegistrar) SlashCommand(path string, h contracts.SlashCommandHandler) {
 	r.mux.SlashCommand(path, func(_ discord.SlashCommandInteractionData, e *handler.CommandEvent) error {
 		defer func() {
 			if rec := recover(); rec != nil {
@@ -99,7 +99,7 @@ func (r *muxRegistrar) SlashCommand(path string, h platform.SlashCommandHandler)
 	})
 }
 
-func (r *muxRegistrar) ButtonComponent(customID string, h platform.ButtonComponentHandler) {
+func (r *muxRegistrar) ButtonComponent(customID string, h contracts.ButtonComponentHandler) {
 	r.mux.ButtonComponent(customID, func(_ discord.ButtonInteractionData, e *handler.ComponentEvent) error {
 		defer func() {
 			if rec := recover(); rec != nil {
@@ -110,7 +110,7 @@ func (r *muxRegistrar) ButtonComponent(customID string, h platform.ButtonCompone
 	})
 }
 
-func (r *muxRegistrar) Autocomplete(path string, h platform.AutocompleteHandler) {
+func (r *muxRegistrar) Autocomplete(path string, h contracts.AutocompleteHandler) {
 	r.mux.Autocomplete(path, func(e *handler.AutocompleteEvent) error {
 		defer func() {
 			if rec := recover(); rec != nil {
@@ -143,11 +143,11 @@ func startBot(_ *cobra.Command, _ []string) error {
 		aggregator *service.Aggregator
 	)
 
-	stages := []platform.Stage{
+	stages := []contracts.Stage{
 		{
 			Name:     "config",
 			Provides: []string{"config"},
-			Run: func(_ context.Context, state *platform.BootState) error {
+			Run: func(_ context.Context, state *contracts.BootState) error {
 				var err error
 				globalCfg, logCfg, botCfg, err = config.Init(bot)
 				if err != nil {
@@ -167,13 +167,13 @@ func startBot(_ *cobra.Command, _ []string) error {
 			Name:     "logger",
 			Requires: []string{"config"},
 			Provides: []string{"logger"},
-			Run: func(_ context.Context, state *platform.BootState) error {
+			Run: func(_ context.Context, state *contracts.BootState) error {
 				logger, err := service.InitLogger(logCfg.Level, logCfg.Format, logCfg.AddSource)
 				if err != nil {
 					return fmt.Errorf("initializing logger: %w", err)
 				}
 				botLogger = logger.With("bot", bot)
-				state.Obs = &platform.Observability{Logger: logger}
+				state.Obs = &contracts.Observability{Logger: logger}
 				return nil
 			},
 		},
@@ -181,7 +181,7 @@ func startBot(_ *cobra.Command, _ []string) error {
 			Name:     "discord",
 			Requires: []string{"config", "logger"},
 			Provides: []string{"discord"},
-			Run: func(_ context.Context, state *platform.BootState) error {
+			Run: func(_ context.Context, state *contracts.BootState) error {
 				client, err := disgo.New(botCfg.Token,
 					disbot.WithCacheConfigOpts(cache.WithCaches(def.cacheFlags)),
 					disbot.WithGatewayConfigOpts(
@@ -207,7 +207,7 @@ func startBot(_ *cobra.Command, _ []string) error {
 			Name:     "guilds",
 			Requires: []string{"discord"},
 			Provides: []string{"guilds"},
-			Run: func(ctx context.Context, state *platform.BootState) error {
+			Run: func(ctx context.Context, state *contracts.BootState) error {
 				var err error
 				guilds, err = config.InitGuilds(ctx, state.Client.Rest, bot)
 				if err != nil {
@@ -233,12 +233,12 @@ func startBot(_ *cobra.Command, _ []string) error {
 			Name:     "services",
 			Requires: []string{"config", "guilds"},
 			Provides: []string{"services"},
-			Run: func(ctx context.Context, state *platform.BootState) error {
+			Run: func(ctx context.Context, state *contracts.BootState) error {
 				registry = service.NewRegistry()
-				registry.Register(platform.CronService, service.NewCronService())
+				registry.Register(contracts.CronService, service.NewCronService())
 
 				if err := botCfg.ValidateOAuth(); err == nil {
-					registry.Register(platform.OAuthService,
+					registry.Register(contracts.OAuthService,
 						service.NewOAuthService(botCfg.ApplicationID, botCfg.ClientSecret, botCfg.BaseURL))
 				}
 
@@ -253,14 +253,14 @@ func startBot(_ *cobra.Command, _ []string) error {
 				aggregator = service.NewAggregator()
 				for _, h := range registry.Health(ctx) {
 					name := h.Name
-					aggregator.Register(name, func(ctx context.Context) platform.Health {
+					aggregator.Register(name, func(ctx context.Context) contracts.Health {
 						// Delegate to the registry's per-service health at call time.
 						for _, sh := range registry.Health(ctx) {
 							if sh.Name == name {
 								return sh
 							}
 						}
-						return platform.Health{Name: name, Status: platform.StatusDown}
+						return contracts.Health{Name: name, Status: contracts.StatusDown}
 					})
 				}
 
@@ -273,17 +273,17 @@ func startBot(_ *cobra.Command, _ []string) error {
 			Name:     "features",
 			Requires: []string{"discord", "guilds", "services"},
 			Provides: []string{"features"},
-			Run: func(ctx context.Context, state *platform.BootState) error {
+			Run: func(ctx context.Context, state *contracts.BootState) error {
 				registrar := &muxRegistrar{mux: state.Router, logger: botLogger}
 				restClient := discordadapter.NewRestAdapter(state.Client.Rest)
 				localeResolver := discordadapter.NewLocaleResolver(discord.LocaleEnglishUS)
 
-				env := platform.Prod
+				env := contracts.Prod
 				if development == "true" {
-					env = platform.Dev
+					env = contracts.Dev
 				}
 
-				needsService := func(needs []platform.ServiceID, id platform.ServiceID) bool {
+				needsService := func(needs []contracts.ServiceID, id contracts.ServiceID) bool {
 					for _, n := range needs {
 						if n == id {
 							return true
@@ -296,28 +296,28 @@ func startBot(_ *cobra.Command, _ []string) error {
 				for _, f := range def.features {
 					cfgProvider := config.NewProvider(resolver, f.Name())
 
-					var cronScheduler platform.CronScheduler
-					if needsService(f.Needs(), platform.CronService) {
-						if svc := registry.Service(platform.CronService); svc != nil {
+					var cronScheduler contracts.CronScheduler
+					if needsService(f.Needs(), contracts.CronService) {
+						if svc := registry.Service(contracts.CronService); svc != nil {
 							cronScheduler = svc.(*service.CronService)
 						}
 					}
-					var oauthProvider platform.OAuthProvider
-					if needsService(f.Needs(), platform.OAuthService) {
-						if svc := registry.Service(platform.OAuthService); svc != nil {
+					var oauthProvider contracts.OAuthProvider
+					if needsService(f.Needs(), contracts.OAuthService) {
+						if svc := registry.Service(contracts.OAuthService); svc != nil {
 							oauthProvider = svc.(*service.OAuthService)
 						}
 					}
 
 					switch f.Scope() {
-					case platform.BotScope:
-						deps := platform.Deps{
+					case contracts.BotScope:
+						deps := contracts.Deps{
 							Logger:   botLogger.With("feature", f.Name()),
 							Rest:     restClient,
 							Commands: registrar,
 							Locale:   localeResolver,
 							Configs:  cfgProvider,
-							Bus:      platform.NoBus,
+							Bus:      contracts.NoBus,
 							Env:      env,
 							BotName:  bot,
 							Cron:     cronScheduler,
@@ -326,15 +326,15 @@ func startBot(_ *cobra.Command, _ []string) error {
 						if err := f.Setup(deps); err != nil {
 							errs = append(errs, fmt.Errorf("setting up feature %q: %w", f.Name(), err))
 						}
-					case platform.GuildScope:
+					case contracts.GuildScope:
 						for _, guildID := range state.Guilds.Guilds() {
-							deps := platform.Deps{
+							deps := contracts.Deps{
 								Logger:   botLogger.With("feature", f.Name(), "guild", guildID),
 								Rest:     restClient,
 								Commands: registrar,
 								Locale:   localeResolver,
 								Configs:  cfgProvider,
-								Bus:      platform.NoBus,
+								Bus:      contracts.NoBus,
 								Env:      env,
 								BotName:  bot,
 								GuildID:  guildID,
@@ -345,14 +345,14 @@ func startBot(_ *cobra.Command, _ []string) error {
 								errs = append(errs, fmt.Errorf("setting up feature %q for guild %s: %w", f.Name(), guildID, err))
 							}
 						}
-					case platform.CrossGuildScope:
-						deps := platform.Deps{
+					case contracts.CrossGuildScope:
+						deps := contracts.Deps{
 							Logger:   botLogger.With("feature", f.Name()),
 							Rest:     restClient,
 							Commands: registrar,
 							Locale:   localeResolver,
 							Configs:  cfgProvider,
-							Bus:      platform.NoBus,
+							Bus:      contracts.NoBus,
 							Env:      env,
 							BotName:  bot,
 							Guilds:   state.Guilds.Accessor(),
@@ -389,7 +389,7 @@ func startBot(_ *cobra.Command, _ []string) error {
 			Name:     "gateway",
 			Requires: []string{"features"},
 			Provides: []string{"gateway"},
-			Run: func(ctx context.Context, state *platform.BootState) error {
+			Run: func(ctx context.Context, state *contracts.BootState) error {
 				if err := state.Client.OpenGateway(ctx); err != nil {
 					return fmt.Errorf("opening gateway: %w", err)
 				}
@@ -399,7 +399,7 @@ func startBot(_ *cobra.Command, _ []string) error {
 		{
 			Name:     "ready",
 			Requires: []string{"gateway"},
-			Run: func(ctx context.Context, state *platform.BootState) error {
+			Run: func(ctx context.Context, state *contracts.BootState) error {
 				slog.Info("----- Bot is running. Press CTRL-C to exit -----")
 
 				sig := make(chan os.Signal, 1)
@@ -415,7 +415,7 @@ func startBot(_ *cobra.Command, _ []string) error {
 				shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 				defer cancel()
 
-				if err := platform.Shutdown(shutdownCtx, state); err != nil {
+				if err := contracts.Shutdown(shutdownCtx, state); err != nil {
 					slog.Error("shutdown completed with errors", slog.Any("error", err))
 				}
 				return nil
@@ -424,7 +424,7 @@ func startBot(_ *cobra.Command, _ []string) error {
 	}
 
 	ctx := context.Background()
-	_, err := platform.Run(ctx, platform.BotSpec{
+	_, err := contracts.Run(ctx, contracts.BotSpec{
 		Name:     bot,
 		Features: def.features,
 		Intents:  def.intents,

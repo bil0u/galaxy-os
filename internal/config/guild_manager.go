@@ -7,12 +7,12 @@ import (
 	"slices"
 	"sync"
 
-	"github.com/bil0u/galaxy-os/internal/platform"
+	"github.com/bil0u/galaxy-os/internal/contracts"
 	"github.com/disgoorg/snowflake/v2"
 )
 
 // Manager owns guild lifecycle: onboarding, removal, and read-only access.
-// It implements platform.GuildManager and delegates config resolution
+// It implements contracts.GuildManager and delegates config resolution
 // to a Resolver for guild-level config loading.
 type Manager struct {
 	mu       sync.RWMutex
@@ -75,7 +75,7 @@ func (m *Manager) Guilds() []snowflake.ID {
 }
 
 // Accessor returns a read-only GuildAccessor backed by this manager.
-func (m *Manager) Accessor() platform.GuildAccessor {
+func (m *Manager) Accessor() contracts.GuildAccessor {
 	return &guildAccessor{mgr: m}
 }
 
@@ -94,7 +94,7 @@ func (a *guildAccessor) IDs() []snowflake.ID {
 // here because the accessor resolves raw guild config (not feature config).
 // For feature-specific config, features use their ConfigProvider.
 func (a *guildAccessor) Config(guildID snowflake.ID, target any) error {
-	scope := platform.ConfigScope{Bot: a.mgr.resolver.botName, GuildID: guildID}
+	scope := contracts.ConfigScope{Bot: a.mgr.resolver.botName, GuildID: guildID}
 	v, err := a.mgr.resolver.loadViper(scope)
 	if err != nil {
 		return fmt.Errorf("loading guild config for %s: %w", guildID, err)

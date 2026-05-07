@@ -5,8 +5,9 @@ guild*.toml
 !config.example.toml
 !guild.example.toml
 
-# Build targets
-bin/
+# Generated assets
+.build/
+.reports/
 
 # Temporary object files
 *.o
@@ -19,10 +20,10 @@ vendor/
 go/
 .gopath/
 
-# IDE specific files
-.idea/
-.vscode/
-
 # Misc
 *.log
 .DS_Store
+
+# Agentic files
+.claude/plans
+.claude/temp

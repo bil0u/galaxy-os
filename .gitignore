@@ -6,8 +6,7 @@ conf/guild*.toml
 !conf/guild.example.toml
 
 # Generated assets
-.build/
-.reports/
+.gen/
 
 # Temporary object files
 *.o

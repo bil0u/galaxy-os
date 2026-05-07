@@ -1,8 +1,7 @@
-package config
+package guild
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"slices"
 	"sync"
@@ -11,19 +10,25 @@ import (
 	"github.com/disgoorg/snowflake/v2"
 )
 
+// ConfigResolver is the subset of config.Resolver that Manager needs.
+type ConfigResolver interface {
+	SetGuildIDs(ids []snowflake.ID)
+	LoadGuildConfig(guildID snowflake.ID, target any) error
+}
+
 // Manager owns guild lifecycle: onboarding, removal, and read-only access.
 // It implements contracts.GuildManager and delegates config resolution
-// to a Resolver for guild-level config loading.
+// to a ConfigResolver for guild-level config loading.
 type Manager struct {
 	mu       sync.RWMutex
 	guildIDs []snowflake.ID
-	resolver *Resolver
+	resolver ConfigResolver
 	logger   *slog.Logger
 }
 
 // NewManager creates a Manager seeded with the initially discovered guild IDs.
 // The resolver is updated to reflect the same set of guild IDs.
-func NewManager(guildIDs []snowflake.ID, resolver *Resolver, logger *slog.Logger) *Manager {
+func NewManager(guildIDs []snowflake.ID, resolver ConfigResolver, logger *slog.Logger) *Manager {
 	resolver.SetGuildIDs(guildIDs)
 	return &Manager{
 		guildIDs: slices.Clone(guildIDs),
@@ -94,13 +99,5 @@ func (a *guildAccessor) IDs() []snowflake.ID {
 // here because the accessor resolves raw guild config (not feature config).
 // For feature-specific config, features use their ConfigProvider.
 func (a *guildAccessor) Config(guildID snowflake.ID, target any) error {
-	scope := contracts.ConfigScope{Bot: a.mgr.resolver.botName, GuildID: guildID}
-	v, err := a.mgr.resolver.loadViper(scope)
-	if err != nil {
-		return fmt.Errorf("loading guild config for %s: %w", guildID, err)
-	}
-	if err := v.Unmarshal(target); err != nil {
-		return fmt.Errorf("unmarshaling guild config for %s: %w", guildID, err)
-	}
-	return nil
+	return a.mgr.resolver.LoadGuildConfig(guildID, target)
 }

@@ -130,5 +130,18 @@ func (r *Resolver) ResolveAll(featureKey string) (map[snowflake.ID]any, error) {
 	return result, nil
 }
 
+// LoadGuildConfig loads and unmarshals the full guild-level config into target.
+func (r *Resolver) LoadGuildConfig(guildID snowflake.ID, target any) error {
+	scope := contracts.ConfigScope{Bot: r.botName, GuildID: guildID}
+	v, err := r.loadViper(scope)
+	if err != nil {
+		return fmt.Errorf("loading guild config for %s: %w", guildID, err)
+	}
+	if err := v.Unmarshal(target); err != nil {
+		return fmt.Errorf("unmarshaling guild config for %s: %w", guildID, err)
+	}
+	return nil
+}
+
 // Invalidate is a no-op until caching is added.
 func (r *Resolver) Invalidate(_ contracts.ConfigScope) {}

@@ -14,6 +14,7 @@ import (
 	"github.com/bil0u/galaxy-os/internal/contracts"
 	discordadapter "github.com/bil0u/galaxy-os/internal/discord"
 	"github.com/bil0u/galaxy-os/internal/feature"
+	"github.com/bil0u/galaxy-os/internal/guild"
 	"github.com/bil0u/galaxy-os/internal/i18n"
 	"github.com/bil0u/galaxy-os/internal/service"
 	"github.com/disgoorg/disgo"
@@ -224,7 +225,7 @@ func startBot(_ *cobra.Command, _ []string) error {
 				resolver = config.NewResolver(store, bot)
 				guildIDs := guilds.IDs(development == "true")
 
-				mgr := config.NewManager(guildIDs, resolver, botLogger)
+				mgr := guild.NewManager(guildIDs, resolver, botLogger)
 				state.Guilds = mgr
 				state.GuildIDs = mgr.Guilds()
 				return nil

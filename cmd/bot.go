@@ -172,7 +172,7 @@ func startBot(_ *cobra.Command, _ []string) error {
 				if err != nil {
 					return fmt.Errorf("initializing logger: %w", err)
 				}
-				botLogger = slog.Default().With("bot", bot)
+				botLogger = logger.With("bot", bot)
 				state.Obs = &platform.Observability{Logger: logger}
 				return nil
 			},
@@ -273,7 +273,7 @@ func startBot(_ *cobra.Command, _ []string) error {
 			Name:     "features",
 			Requires: []string{"discord", "guilds", "services"},
 			Provides: []string{"features"},
-			Run: func(_ context.Context, state *platform.BootState) error {
+			Run: func(ctx context.Context, state *platform.BootState) error {
 				registrar := &muxRegistrar{mux: state.Router, logger: botLogger}
 				restClient := discordadapter.NewRestAdapter(state.Client.Rest)
 				localeResolver := discordadapter.NewLocaleResolver(discord.LocaleEnglishUS)
@@ -283,18 +283,32 @@ func startBot(_ *cobra.Command, _ []string) error {
 					env = platform.Dev
 				}
 
-				var cronScheduler platform.CronScheduler
-				if svc := registry.Service(platform.CronService); svc != nil {
-					cronScheduler = svc.(*service.CronService)
-				}
-				var oauthProvider platform.OAuthProvider
-				if svc := registry.Service(platform.OAuthService); svc != nil {
-					oauthProvider = svc.(*service.OAuthService)
+				needsService := func(needs []platform.ServiceID, id platform.ServiceID) bool {
+					for _, n := range needs {
+						if n == id {
+							return true
+						}
+					}
+					return false
 				}
 
 				var errs []error
 				for _, f := range def.features {
 					cfgProvider := config.NewProvider(resolver, f.Name())
+
+					var cronScheduler platform.CronScheduler
+					if needsService(f.Needs(), platform.CronService) {
+						if svc := registry.Service(platform.CronService); svc != nil {
+							cronScheduler = svc.(*service.CronService)
+						}
+					}
+					var oauthProvider platform.OAuthProvider
+					if needsService(f.Needs(), platform.OAuthService) {
+						if svc := registry.Service(platform.OAuthService); svc != nil {
+							oauthProvider = svc.(*service.OAuthService)
+						}
+					}
+
 					switch f.Scope() {
 					case platform.BotScope:
 						deps := platform.Deps{
@@ -352,6 +366,15 @@ func startBot(_ *cobra.Command, _ []string) error {
 				}
 				if err := errors.Join(errs...); err != nil {
 					return fmt.Errorf("setting up features: %w", err)
+				}
+
+				for _, f := range def.features {
+					if err := f.Start(ctx); err != nil {
+						errs = append(errs, fmt.Errorf("starting feature %q: %w", f.Name(), err))
+					}
+				}
+				if err := errors.Join(errs...); err != nil {
+					return fmt.Errorf("starting features: %w", err)
 				}
 
 				state.Features = def.features

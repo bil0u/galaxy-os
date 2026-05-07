@@ -2,14 +2,13 @@ package service
 
 import (
 	"context"
+	"crypto/rand"
 	"encoding/json"
 	"fmt"
 	"log/slog"
-	"math/rand"
 	"net"
 	"net/http"
 	"sync"
-	"time"
 
 	"github.com/bil0u/galaxy-os/internal/platform"
 	"github.com/disgoorg/disgo/discord"
@@ -185,12 +184,15 @@ func writeError(w http.ResponseWriter, text string, err error) {
 }
 
 func randStr(n int) string {
-	var rng = rand.New(rand.NewSource(time.Now().UnixNano()))
-	b := make([]rune, n)
-	for i := range b {
-		b[i] = letters[rng.Intn(len(letters))]
+	b := make([]byte, n)
+	if _, err := rand.Read(b); err != nil {
+		panic(fmt.Sprintf("crypto/rand.Read failed: %v", err))
 	}
-	return string(b)
+	result := make([]rune, n)
+	for i := range result {
+		result[i] = letters[int(b[i])%len(letters)]
+	}
+	return string(result)
 }
 
 func formatData(data any) []byte {

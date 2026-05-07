@@ -11,8 +11,6 @@ import (
 	"sync"
 )
 
-var logger *slog.Logger
-
 func InitLogger(level slog.Level, format string, addSource bool) (*slog.Logger, error) {
 	var handler slog.Handler
 	switch format {
@@ -36,13 +34,9 @@ func InitLogger(level slog.Level, format string, addSource bool) (*slog.Logger, 
 	default:
 		return nil, fmt.Errorf("unknown log format %q", format)
 	}
-	logger = slog.New(handler)
-	slog.SetDefault(logger)
-	return logger, nil
-}
-
-func Logger() *slog.Logger {
-	return logger
+	l := slog.New(handler)
+	slog.SetDefault(l)
+	return l, nil
 }
 
 func newHandler(opts *slog.HandlerOptions) *LogHandler {

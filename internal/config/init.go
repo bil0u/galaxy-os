@@ -24,7 +24,7 @@ func readLocalConfig(filename, path string) (*viper.Viper, error) {
 
 // Init initializes the configuration and returns all config values.
 func Init(botName string) (*Global, *Log, *Bot, error) {
-	cfg, err := readLocalConfig("config", ".")
+	cfg, err := readLocalConfig("config", "conf")
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -61,7 +61,7 @@ func InitGuilds(ctx context.Context, client rest.Rest, botName string) (*GuildMa
 	}
 
 	for _, guild := range botGuilds {
-		cfg, err := readLocalConfig(("config." + guild.ID.String()), ".")
+		cfg, err := readLocalConfig(("config." + guild.ID.String()), "conf")
 		if err != nil {
 			cfg = nil
 			slog.Error(err.Error())

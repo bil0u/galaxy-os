@@ -143,7 +143,7 @@ func startBot(_ *cobra.Command, _ []string) error {
 				slog.Debug(fmt.Sprintf("Log configuration: %+v", logCfg))
 				slog.Debug(fmt.Sprintf("Guilds configuration: %+v", guilds))
 
-				store := config.NewFileStore(".")
+				store := config.NewFileStore("conf")
 				resolver = config.NewResolver(store, bot)
 				guildIDs := guilds.IDs(development == "true")
 

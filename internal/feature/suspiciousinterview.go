@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/bil0u/galaxy-os/internal/locale"
+	"github.com/bil0u/galaxy-os/internal/i18n"
 	"github.com/bil0u/galaxy-os/internal/contracts"
 	"github.com/disgoorg/disgo/discord"
 	"github.com/disgoorg/disgo/rest"
@@ -79,7 +79,7 @@ func (f *suspiciousInterview) Stop(ctx context.Context) error  { return nil }
 
 // --- Interview execution logic ---
 
-var suspiciousWelcomeMessage = locale.Text{
+var suspiciousWelcomeMessage = i18n.Text{
 	discord.LocaleEnglishUS: "Hello %s!\n\nBefore you join our ship, we need to ask you a few questions to determine your role. You will be asked a series of questions, please answer them truthfully.\n\nAre you ready?",
 	discord.LocaleFrench:    "Bonjour %s!\n\nAvant de rejoindre notre vaisseau, nous devons te poser quelques questions pour déterminer votre rôle. Tu seras invité à répondre à une série de questions, merci de répondre honnêtement.\n\nEs-tu prêt?",
 }

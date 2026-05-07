@@ -5,15 +5,15 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/bil0u/galaxy-os/internal/contracts"
+	"github.com/bil0u/galaxy-os/internal/core"
 	"github.com/disgoorg/snowflake/v2"
 	"github.com/spf13/viper"
 )
 
-// Resolver implements contracts.ScopedResolver by loading TOML config
+// Resolver implements core.ScopedResolver by loading TOML config
 // from a ConfigStore and extracting feature sections via viper.
 type Resolver struct {
-	store   contracts.ConfigStore
+	store   core.ConfigStore
 	botName string
 
 	// guildIDs is the set of known guild IDs, populated after guild discovery.
@@ -22,7 +22,7 @@ type Resolver struct {
 }
 
 // NewResolver creates a Resolver bound to a store and bot name.
-func NewResolver(store contracts.ConfigStore, botName string) *Resolver {
+func NewResolver(store core.ConfigStore, botName string) *Resolver {
 	return &Resolver{
 		store:   store,
 		botName: botName,
@@ -36,7 +36,7 @@ func (r *Resolver) SetGuildIDs(ids []snowflake.ID) {
 
 // loadViper reads raw bytes from the store for the given scope and
 // returns a viper instance with the parsed TOML content.
-func (r *Resolver) loadViper(scope contracts.ConfigScope) (*viper.Viper, error) {
+func (r *Resolver) loadViper(scope core.ConfigScope) (*viper.Viper, error) {
 	data, err := r.store.Load(context.Background(), scope)
 	if err != nil {
 		return nil, err
@@ -58,7 +58,7 @@ func (r *Resolver) featurePath(featureKey string) string {
 // ResolveBot unmarshals the bot-level feature config into target.
 // It reads from [features.<botName>.<featureKey>] in config.toml.
 func (r *Resolver) ResolveBot(featureKey string, target any) error {
-	scope := contracts.ConfigScope{Bot: r.botName, GuildID: 0}
+	scope := core.ConfigScope{Bot: r.botName, GuildID: 0}
 	v, err := r.loadViper(scope)
 	if err != nil {
 		return fmt.Errorf("loading bot config: %w", err)
@@ -80,7 +80,7 @@ func (r *Resolver) ResolveBot(featureKey string, target any) error {
 // or lacks the feature section.
 func (r *Resolver) ResolveGuild(featureKey string, guildID snowflake.ID, target any) error {
 	// Try bot-level defaults first.
-	botScope := contracts.ConfigScope{Bot: r.botName, GuildID: 0}
+	botScope := core.ConfigScope{Bot: r.botName, GuildID: 0}
 	botV, err := r.loadViper(botScope)
 	if err == nil {
 		if sub := botV.Sub(r.featurePath(featureKey)); sub != nil {
@@ -91,7 +91,7 @@ func (r *Resolver) ResolveGuild(featureKey string, guildID snowflake.ID, target 
 	}
 
 	// Overlay guild-level config on top.
-	guildScope := contracts.ConfigScope{Bot: r.botName, GuildID: guildID}
+	guildScope := core.ConfigScope{Bot: r.botName, GuildID: guildID}
 	guildV, err := r.loadViper(guildScope)
 	if err != nil {
 		// No guild config file — bot defaults (if any) remain.
@@ -111,8 +111,8 @@ func (r *Resolver) ResolveGuild(featureKey string, guildID snowflake.ID, target 
 // ResolveAll returns a map of guild ID to config for every known guild.
 // Each entry is unmarshaled independently via ResolveGuild, so the
 // caller receives concrete values (not pointers). The returned map uses
-// `any` to satisfy the contracts.ScopedResolver interface; callers
-// should use contracts.ResolveAll[T] for typed access.
+// `any` to satisfy the core.ScopedResolver interface; callers
+// should use core.ResolveAll[T] for typed access.
 func (r *Resolver) ResolveAll(featureKey string) (map[snowflake.ID]any, error) {
 	result := make(map[snowflake.ID]any, len(r.guildIDs))
 	for _, guildID := range r.guildIDs {
@@ -132,7 +132,7 @@ func (r *Resolver) ResolveAll(featureKey string) (map[snowflake.ID]any, error) {
 
 // LoadGuildConfig loads and unmarshals the full guild-level config into target.
 func (r *Resolver) LoadGuildConfig(guildID snowflake.ID, target any) error {
-	scope := contracts.ConfigScope{Bot: r.botName, GuildID: guildID}
+	scope := core.ConfigScope{Bot: r.botName, GuildID: guildID}
 	v, err := r.loadViper(scope)
 	if err != nil {
 		return fmt.Errorf("loading guild config for %s: %w", guildID, err)
@@ -144,4 +144,4 @@ func (r *Resolver) LoadGuildConfig(guildID snowflake.ID, target any) error {
 }
 
 // Invalidate is a no-op until caching is added.
-func (r *Resolver) Invalidate(_ contracts.ConfigScope) {}
+func (r *Resolver) Invalidate(_ core.ConfigScope) {}

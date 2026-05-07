@@ -1,4 +1,4 @@
-package contracts
+package core
 
 import (
 	"github.com/disgoorg/disgo/discord"

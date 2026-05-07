@@ -61,7 +61,7 @@ feature/           # Top-level feature catalog — one sub-package per feature
   suspiciousinterview/
   testcmd/
 internal/
-  contracts/       # Framework contracts — interfaces, boot pipeline, lifecycle
+  core/       # Framework core — interfaces, boot pipeline, lifecycle
   config/          # Config implementation (FileStore, Resolver, Provider)
   discord/         # Discord adapters (RestAdapter)
   guild/           # Guild lifecycle manager
@@ -71,16 +71,16 @@ internal/
 
 ### Dependency rules
 
-- `contracts/` imports only stdlib + disgo types. Never imports feature/, service/, config/
-- `feature/` imports only `contracts/` (interfaces). Never imports config/, service/, or other features
-- `service/` imports only `contracts/` (interfaces). Never imports feature/ or config/
-- `config/` imports only `contracts/` (interfaces)
-- `guild/` imports only `contracts/` (interfaces)
+- `core/` imports only stdlib + disgo types. Never imports feature/, service/, config/
+- `feature/` imports only `core/` (interfaces). Never imports config/, service/, or other features
+- `service/` imports only `core/` (interfaces). Never imports feature/ or config/
+- `config/` imports only `core/` (interfaces)
+- `guild/` imports only `core/` (interfaces)
 - `cmd/` is the sole composition root — imports everything
 
 ### Boot pipeline
 
-All initialization runs through a declarative stage pipeline in `cmd/bot.go` via `contracts.Run()`:
+All initialization runs through a declarative stage pipeline in `cmd/bot.go` via `core.Run()`:
 
 1. **config** — loads `config.toml`, parses Global/Bot/Log
 2. **logger** — initializes structured slog
@@ -95,7 +95,7 @@ Shutdown is reverse order: features Stop, services StopAll, gateway Close.
 
 ### Feature system
 
-Each feature is a struct implementing `contracts.Feature`:
+Each feature is a struct implementing `core.Feature`:
 
 ```go
 type Feature interface {
@@ -108,7 +108,7 @@ type Feature interface {
 }
 ```
 
-Features receive dependencies via `contracts.Deps` — a struct built per-feature by the framework:
+Features receive dependencies via `core.Deps` — a struct built per-feature by the framework:
 
 - Always populated: Logger (scoped), Rest (interface), Commands (Registrar), Locale, Configs (ConfigProvider), Bus, Env, BotName
 - Scope-dependent: GuildID (GuildScope), Guilds (CrossGuildScope)
@@ -117,7 +117,7 @@ Features receive dependencies via `contracts.Deps` — a struct built per-featur
 **Adding a new feature:**
 
 1. Create a sub-package in `feature/<name>/`
-2. Define a struct implementing `contracts.Feature` with a config struct implementing `contracts.Config`
+2. Define a struct implementing `core.Feature` with a config struct implementing `core.Config`
 3. Export a package-level var: `var Feature = &myFeature{}`
 4. Register in `cmd/bots.go`'s `bots` map for the relevant bot(s)
 
@@ -128,16 +128,16 @@ TOML-based, managed by viper. Two tiers:
 - `conf/config.toml` — global + per-bot config under `[bot.<botname>]`, features under `[features.<botname>.<featurekey>]`
 - `conf/config.<guild_snowflake_id>.toml` — per-guild overrides with inheritance from bot defaults
 
-Both are **gitignored**. Only `conf/config.example.toml` is tracked. Config access in features via `contracts.ConfigProvider`:
+Both are **gitignored**. Only `conf/config.example.toml` is tracked. Config access in features via `core.ConfigProvider`:
 
 ```go
-contracts.ResolveGuild[MyConfig](deps.Configs, guildID)  // guild-scoped
-contracts.ResolveBot[MyConfig](deps.Configs)              // bot-scoped
+core.ResolveGuild[MyConfig](deps.Configs, guildID)  // guild-scoped
+core.ResolveBot[MyConfig](deps.Configs)              // bot-scoped
 ```
 
 ### Services layer
 
-Each service implements `contracts.Service` (Name/Start/Health/Stop). Services are demand-activated — they start only when a feature declares them in `Needs()`. Current services: CronService, OAuthService, SQLService (deferred), EmailService (deferred).
+Each service implements `core.Service` (Name/Start/Health/Stop). Services are demand-activated — they start only when a feature declares them in `Needs()`. Current services: CronService, OAuthService, SQLService (deferred), EmailService (deferred).
 
 ### Localization
 

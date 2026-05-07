@@ -4,13 +4,13 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/bil0u/galaxy-os/internal/contracts"
+	"github.com/bil0u/galaxy-os/internal/core"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	pgxUUID "github.com/vgarvardt/pgx-google-uuid/v5"
 )
 
-// SQLService wraps pgxpool as a contracts.Service.
+// SQLService wraps pgxpool as a core.Service.
 type SQLService struct {
 	pgURL string
 	pool  *pgxpool.Pool
@@ -43,20 +43,20 @@ func (s *SQLService) Start(ctx context.Context) error {
 	return nil
 }
 
-func (s *SQLService) Health(ctx context.Context) contracts.Health {
-	h := contracts.Health{
+func (s *SQLService) Health(ctx context.Context) core.Health {
+	h := core.Health{
 		Name:   s.Name(),
-		Status: contracts.StatusDown,
+		Status: core.StatusDown,
 	}
 	if s.pool == nil {
 		return h
 	}
 	if err := s.pool.Ping(ctx); err != nil {
-		h.Status = contracts.StatusDegraded
+		h.Status = core.StatusDegraded
 		h.Details = map[string]string{"error": err.Error()}
 		return h
 	}
-	h.Status = contracts.StatusUp
+	h.Status = core.StatusUp
 	return h
 }
 

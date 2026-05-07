@@ -8,20 +8,20 @@ import (
 	"github.com/bil0u/galaxy-os/feature/selfassign"
 	"github.com/bil0u/galaxy-os/feature/suspiciousinterview"
 	"github.com/bil0u/galaxy-os/feature/testcmd"
-	"github.com/bil0u/galaxy-os/internal/contracts"
+	"github.com/bil0u/galaxy-os/internal/core"
 	"github.com/disgoorg/disgo/cache"
 	"github.com/disgoorg/disgo/gateway"
 )
 
 type botDef struct {
-	features   []contracts.Feature
+	features   []core.Feature
 	cacheFlags cache.Flags
 	intents    gateway.Intents
 }
 
 var bots = map[string]botDef{
 	"hue": {
-		features: []contracts.Feature{
+		features: []core.Feature{
 			info.Feature,
 			permissions.Feature,
 			testcmd.Feature,
@@ -34,7 +34,7 @@ var bots = map[string]botDef{
 		intents:    gateway.IntentGuilds | gateway.IntentGuildMembers,
 	},
 	"kevin": {
-		features: []contracts.Feature{
+		features: []core.Feature{
 			info.Feature,
 			permissions.Feature,
 			testcmd.Feature,

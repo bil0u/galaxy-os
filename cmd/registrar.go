@@ -3,14 +3,14 @@ package cmd
 import (
 	"log/slog"
 
-	"github.com/bil0u/galaxy-os/internal/contracts"
+	"github.com/bil0u/galaxy-os/internal/core"
 	"github.com/disgoorg/disgo/discord"
 	"github.com/disgoorg/disgo/handler"
 )
 
-// muxRegistrar adapts handler.Mux to contracts.Registrar.
+// muxRegistrar adapts handler.Mux to core.Registrar.
 // disgo v0.19.3 handler types include a typed data parameter;
-// the contracts.Registrar signatures omit it for simplicity.
+// the core.Registrar signatures omit it for simplicity.
 // Each handler wrapper includes panic recovery so a panicking
 // feature handler is logged and the bot continues running.
 type muxRegistrar struct {
@@ -18,7 +18,7 @@ type muxRegistrar struct {
 	logger *slog.Logger
 }
 
-func (r *muxRegistrar) SlashCommand(path string, h contracts.SlashCommandHandler) {
+func (r *muxRegistrar) SlashCommand(path string, h core.SlashCommandHandler) {
 	r.mux.SlashCommand(path, func(_ discord.SlashCommandInteractionData, e *handler.CommandEvent) error {
 		defer func() {
 			if rec := recover(); rec != nil {
@@ -29,7 +29,7 @@ func (r *muxRegistrar) SlashCommand(path string, h contracts.SlashCommandHandler
 	})
 }
 
-func (r *muxRegistrar) ButtonComponent(customID string, h contracts.ButtonComponentHandler) {
+func (r *muxRegistrar) ButtonComponent(customID string, h core.ButtonComponentHandler) {
 	r.mux.ButtonComponent(customID, func(_ discord.ButtonInteractionData, e *handler.ComponentEvent) error {
 		defer func() {
 			if rec := recover(); rec != nil {
@@ -40,7 +40,7 @@ func (r *muxRegistrar) ButtonComponent(customID string, h contracts.ButtonCompon
 	})
 }
 
-func (r *muxRegistrar) Autocomplete(path string, h contracts.AutocompleteHandler) {
+func (r *muxRegistrar) Autocomplete(path string, h core.AutocompleteHandler) {
 	r.mux.Autocomplete(path, func(e *handler.AutocompleteEvent) error {
 		defer func() {
 			if rec := recover(); rec != nil {

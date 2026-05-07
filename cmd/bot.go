@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/bil0u/galaxy-os/internal/config"
-	"github.com/bil0u/galaxy-os/internal/contracts"
+	"github.com/bil0u/galaxy-os/internal/core"
 	discordadapter "github.com/bil0u/galaxy-os/internal/discord"
 	"github.com/bil0u/galaxy-os/internal/guild"
 	"github.com/bil0u/galaxy-os/internal/i18n"
@@ -67,11 +67,11 @@ func startBot(_ *cobra.Command, _ []string) error {
 		aggregator *service.Aggregator
 	)
 
-	stages := []contracts.Stage{
+	stages := []core.Stage{
 		{
 			Name:     "config",
 			Provides: []string{"config"},
-			Run: func(_ context.Context, state *contracts.BootState) error {
+			Run: func(_ context.Context, state *core.BootState) error {
 				var err error
 				globalCfg, logCfg, botCfg, err = config.Init(bot)
 				if err != nil {
@@ -91,13 +91,13 @@ func startBot(_ *cobra.Command, _ []string) error {
 			Name:     "logger",
 			Requires: []string{"config"},
 			Provides: []string{"logger"},
-			Run: func(_ context.Context, state *contracts.BootState) error {
+			Run: func(_ context.Context, state *core.BootState) error {
 				logger, err := service.InitLogger(logCfg.Level, logCfg.Format, logCfg.AddSource)
 				if err != nil {
 					return fmt.Errorf("initializing logger: %w", err)
 				}
 				botLogger = logger.With("bot", bot)
-				state.Obs = &contracts.Observability{Logger: logger}
+				state.Obs = &core.Observability{Logger: logger}
 				return nil
 			},
 		},
@@ -105,7 +105,7 @@ func startBot(_ *cobra.Command, _ []string) error {
 			Name:     "discord",
 			Requires: []string{"config", "logger"},
 			Provides: []string{"discord"},
-			Run: func(_ context.Context, state *contracts.BootState) error {
+			Run: func(_ context.Context, state *core.BootState) error {
 				client, err := disgo.New(botCfg.Token,
 					disbot.WithCacheConfigOpts(cache.WithCaches(def.cacheFlags)),
 					disbot.WithGatewayConfigOpts(
@@ -131,7 +131,7 @@ func startBot(_ *cobra.Command, _ []string) error {
 			Name:     "guilds",
 			Requires: []string{"discord"},
 			Provides: []string{"guilds"},
-			Run: func(ctx context.Context, state *contracts.BootState) error {
+			Run: func(ctx context.Context, state *core.BootState) error {
 				var err error
 				guilds, err = config.InitGuilds(ctx, state.Client.Rest, bot)
 				if err != nil {
@@ -157,12 +157,12 @@ func startBot(_ *cobra.Command, _ []string) error {
 			Name:     "services",
 			Requires: []string{"config", "guilds"},
 			Provides: []string{"services"},
-			Run: func(ctx context.Context, state *contracts.BootState) error {
+			Run: func(ctx context.Context, state *core.BootState) error {
 				registry = service.NewRegistry()
-				registry.Register(contracts.CronService, service.NewCronService())
+				registry.Register(core.CronService, service.NewCronService())
 
 				if err := botCfg.ValidateOAuth(); err == nil {
-					registry.Register(contracts.OAuthService,
+					registry.Register(core.OAuthService,
 						service.NewOAuthService(botCfg.ApplicationID, botCfg.ClientSecret, botCfg.BaseURL))
 				}
 
@@ -177,14 +177,14 @@ func startBot(_ *cobra.Command, _ []string) error {
 				aggregator = service.NewAggregator()
 				for _, h := range registry.Health(ctx) {
 					name := h.Name
-					aggregator.Register(name, func(ctx context.Context) contracts.Health {
+					aggregator.Register(name, func(ctx context.Context) core.Health {
 						// Delegate to the registry's per-service health at call time.
 						for _, sh := range registry.Health(ctx) {
 							if sh.Name == name {
 								return sh
 							}
 						}
-						return contracts.Health{Name: name, Status: contracts.StatusDown}
+						return core.Health{Name: name, Status: core.StatusDown}
 					})
 				}
 
@@ -197,17 +197,17 @@ func startBot(_ *cobra.Command, _ []string) error {
 			Name:     "features",
 			Requires: []string{"discord", "guilds", "services"},
 			Provides: []string{"features"},
-			Run: func(ctx context.Context, state *contracts.BootState) error {
+			Run: func(ctx context.Context, state *core.BootState) error {
 				registrar := &muxRegistrar{mux: state.Router, logger: botLogger}
 				restClient := discordadapter.NewRestAdapter(state.Client.Rest)
 				localeResolver := i18n.NewLocaleResolver(discord.LocaleEnglishUS)
 
-				env := contracts.Prod
+				env := core.Prod
 				if development == "true" {
-					env = contracts.Dev
+					env = core.Dev
 				}
 
-				needsService := func(needs []contracts.ServiceID, id contracts.ServiceID) bool {
+				needsService := func(needs []core.ServiceID, id core.ServiceID) bool {
 					for _, n := range needs {
 						if n == id {
 							return true
@@ -220,28 +220,28 @@ func startBot(_ *cobra.Command, _ []string) error {
 				for _, f := range def.features {
 					cfgProvider := config.NewProvider(resolver, f.Name())
 
-					var cronScheduler contracts.CronScheduler
-					if needsService(f.Needs(), contracts.CronService) {
-						if svc := registry.Service(contracts.CronService); svc != nil {
+					var cronScheduler core.CronScheduler
+					if needsService(f.Needs(), core.CronService) {
+						if svc := registry.Service(core.CronService); svc != nil {
 							cronScheduler = svc.(*service.CronService)
 						}
 					}
-					var oauthProvider contracts.OAuthProvider
-					if needsService(f.Needs(), contracts.OAuthService) {
-						if svc := registry.Service(contracts.OAuthService); svc != nil {
+					var oauthProvider core.OAuthProvider
+					if needsService(f.Needs(), core.OAuthService) {
+						if svc := registry.Service(core.OAuthService); svc != nil {
 							oauthProvider = svc.(*service.OAuthService)
 						}
 					}
 
 					switch f.Scope() {
-					case contracts.BotScope:
-						deps := contracts.Deps{
+					case core.BotScope:
+						deps := core.Deps{
 							Logger:   botLogger.With("feature", f.Name()),
 							Rest:     restClient,
 							Commands: registrar,
 							Locale:   localeResolver,
 							Configs:  cfgProvider,
-							Bus:      contracts.NoBus,
+							Bus:      core.NoBus,
 							Env:      env,
 							BotName:  bot,
 							Cron:     cronScheduler,
@@ -250,15 +250,15 @@ func startBot(_ *cobra.Command, _ []string) error {
 						if err := f.Setup(deps); err != nil {
 							errs = append(errs, fmt.Errorf("setting up feature %q: %w", f.Name(), err))
 						}
-					case contracts.GuildScope:
+					case core.GuildScope:
 						for _, guildID := range state.Guilds.Guilds() {
-							deps := contracts.Deps{
+							deps := core.Deps{
 								Logger:   botLogger.With("feature", f.Name(), "guild", guildID),
 								Rest:     restClient,
 								Commands: registrar,
 								Locale:   localeResolver,
 								Configs:  cfgProvider,
-								Bus:      contracts.NoBus,
+								Bus:      core.NoBus,
 								Env:      env,
 								BotName:  bot,
 								GuildID:  guildID,
@@ -269,14 +269,14 @@ func startBot(_ *cobra.Command, _ []string) error {
 								errs = append(errs, fmt.Errorf("setting up feature %q for guild %s: %w", f.Name(), guildID, err))
 							}
 						}
-					case contracts.CrossGuildScope:
-						deps := contracts.Deps{
+					case core.CrossGuildScope:
+						deps := core.Deps{
 							Logger:   botLogger.With("feature", f.Name()),
 							Rest:     restClient,
 							Commands: registrar,
 							Locale:   localeResolver,
 							Configs:  cfgProvider,
-							Bus:      contracts.NoBus,
+							Bus:      core.NoBus,
 							Env:      env,
 							BotName:  bot,
 							Guilds:   state.Guilds.Accessor(),
@@ -313,7 +313,7 @@ func startBot(_ *cobra.Command, _ []string) error {
 			Name:     "gateway",
 			Requires: []string{"features"},
 			Provides: []string{"gateway"},
-			Run: func(ctx context.Context, state *contracts.BootState) error {
+			Run: func(ctx context.Context, state *core.BootState) error {
 				if err := state.Client.OpenGateway(ctx); err != nil {
 					return fmt.Errorf("opening gateway: %w", err)
 				}
@@ -323,7 +323,7 @@ func startBot(_ *cobra.Command, _ []string) error {
 		{
 			Name:     "ready",
 			Requires: []string{"gateway"},
-			Run: func(ctx context.Context, state *contracts.BootState) error {
+			Run: func(ctx context.Context, state *core.BootState) error {
 				slog.Info("----- Bot is running. Press CTRL-C to exit -----")
 
 				sig := make(chan os.Signal, 1)
@@ -339,7 +339,7 @@ func startBot(_ *cobra.Command, _ []string) error {
 				shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 				defer cancel()
 
-				if err := contracts.Shutdown(shutdownCtx, state); err != nil {
+				if err := core.Shutdown(shutdownCtx, state); err != nil {
 					slog.Error("shutdown completed with errors", slog.Any("error", err))
 				}
 				return nil
@@ -348,7 +348,7 @@ func startBot(_ *cobra.Command, _ []string) error {
 	}
 
 	ctx := context.Background()
-	_, err := contracts.Run(ctx, contracts.BotSpec{
+	_, err := core.Run(ctx, core.BotSpec{
 		Name:     bot,
 		Features: def.features,
 		Intents:  def.intents,

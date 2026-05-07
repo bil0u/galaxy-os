@@ -6,7 +6,7 @@ import (
 	"log/slog"
 	"regexp"
 
-	"github.com/bil0u/galaxy-os/internal/contracts"
+	"github.com/bil0u/galaxy-os/internal/core"
 	"github.com/disgoorg/snowflake/v2"
 )
 
@@ -15,9 +15,9 @@ var Feature = &dailyMessage{}
 
 type dailyMessage struct {
 	logger  *slog.Logger
-	rest    contracts.RestClient
-	configs contracts.ConfigProvider
-	cron    contracts.CronScheduler
+	rest    core.RestClient
+	configs core.ConfigProvider
+	cron    core.CronScheduler
 	guildID snowflake.ID
 }
 
@@ -51,12 +51,12 @@ func (c dailyMessageConfig) cronSchedule() (string, error) {
 }
 
 func (f *dailyMessage) Name() string           { return "daily_message" }
-func (f *dailyMessage) Scope() contracts.Scope { return contracts.GuildScope }
-func (f *dailyMessage) Needs() []contracts.ServiceID {
-	return []contracts.ServiceID{contracts.CronService}
+func (f *dailyMessage) Scope() core.Scope { return core.GuildScope }
+func (f *dailyMessage) Needs() []core.ServiceID {
+	return []core.ServiceID{core.CronService}
 }
 
-func (f *dailyMessage) Setup(deps contracts.Deps) error {
+func (f *dailyMessage) Setup(deps core.Deps) error {
 	f.logger = deps.Logger
 	f.rest = deps.Rest
 	f.configs = deps.Configs

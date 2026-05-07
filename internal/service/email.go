@@ -7,7 +7,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/sesv2"
 	"github.com/aws/aws-sdk-go-v2/service/sesv2/types"
-	"github.com/bil0u/galaxy-os/internal/contracts"
+	"github.com/bil0u/galaxy-os/internal/core"
 )
 
 var (
@@ -15,7 +15,7 @@ var (
 	emailCharset = ""
 )
 
-// EmailService wraps AWS SES as a contracts.Service.
+// EmailService wraps AWS SES as a core.Service.
 type EmailService struct {
 	client *sesv2.Client
 }
@@ -40,12 +40,12 @@ func (s *EmailService) Start(ctx context.Context) error {
 	return nil
 }
 
-func (s *EmailService) Health(_ context.Context) contracts.Health {
-	status := contracts.StatusDown
+func (s *EmailService) Health(_ context.Context) core.Health {
+	status := core.StatusDown
 	if s.client != nil {
-		status = contracts.StatusUp
+		status = core.StatusUp
 	}
-	return contracts.Health{
+	return core.Health{
 		Name:   s.Name(),
 		Status: status,
 	}

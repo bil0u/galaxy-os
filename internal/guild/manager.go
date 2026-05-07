@@ -6,7 +6,7 @@ import (
 	"slices"
 	"sync"
 
-	"github.com/bil0u/galaxy-os/internal/contracts"
+	"github.com/bil0u/galaxy-os/internal/core"
 	"github.com/disgoorg/snowflake/v2"
 )
 
@@ -17,7 +17,7 @@ type ConfigResolver interface {
 }
 
 // Manager owns guild lifecycle: onboarding, removal, and read-only access.
-// It implements contracts.GuildManager and delegates config resolution
+// It implements core.GuildManager and delegates config resolution
 // to a ConfigResolver for guild-level config loading.
 type Manager struct {
 	mu       sync.RWMutex
@@ -80,7 +80,7 @@ func (m *Manager) Guilds() []snowflake.ID {
 }
 
 // Accessor returns a read-only GuildAccessor backed by this manager.
-func (m *Manager) Accessor() contracts.GuildAccessor {
+func (m *Manager) Accessor() core.GuildAccessor {
 	return &guildAccessor{mgr: m}
 }
 

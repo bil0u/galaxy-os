@@ -3,7 +3,7 @@ package testcmd
 import (
 	"context"
 
-	"github.com/bil0u/galaxy-os/internal/contracts"
+	"github.com/bil0u/galaxy-os/internal/core"
 	"github.com/bil0u/galaxy-os/internal/i18n"
 	"github.com/disgoorg/disgo/discord"
 	"github.com/disgoorg/disgo/handler"
@@ -21,10 +21,10 @@ type testConfig struct {
 func (c testConfig) Validate() error { return nil }
 
 func (f *test) Name() string                 { return "test" }
-func (f *test) Scope() contracts.Scope       { return contracts.BotScope }
-func (f *test) Needs() []contracts.ServiceID { return nil }
+func (f *test) Scope() core.Scope       { return core.BotScope }
+func (f *test) Needs() []core.ServiceID { return nil }
 
-func (f *test) Setup(deps contracts.Deps) error {
+func (f *test) Setup(deps core.Deps) error {
 	deps.Commands.SlashCommand("/test", testHandler)
 	deps.Commands.Autocomplete("/test", testAutocompleteHandler)
 	deps.Commands.ButtonComponent("/test-button", testComponentHandler)

@@ -6,7 +6,7 @@ import (
 	"log/slog"
 	"slices"
 
-	"github.com/bil0u/galaxy-os/internal/contracts"
+	"github.com/bil0u/galaxy-os/internal/core"
 	"github.com/disgoorg/disgo/rest"
 	"github.com/disgoorg/snowflake/v2"
 )
@@ -16,7 +16,7 @@ var Feature = &selfAssign{}
 
 type selfAssign struct {
 	logger  *slog.Logger
-	configs contracts.ConfigProvider
+	configs core.ConfigProvider
 	guildID snowflake.ID
 }
 
@@ -38,16 +38,16 @@ func (c selfAssignConfig) Validate() error {
 }
 
 func (f *selfAssign) Name() string                 { return "self_assign" }
-func (f *selfAssign) Scope() contracts.Scope       { return contracts.GuildScope }
-func (f *selfAssign) Needs() []contracts.ServiceID { return nil }
+func (f *selfAssign) Scope() core.Scope       { return core.GuildScope }
+func (f *selfAssign) Needs() []core.ServiceID { return nil }
 
-func (f *selfAssign) Setup(deps contracts.Deps) error {
+func (f *selfAssign) Setup(deps core.Deps) error {
 	f.logger = deps.Logger
 	f.configs = deps.Configs
 	f.guildID = deps.GuildID
 
 	// TODO: self-assign requires gateway client access (bot.NewListenerFunc for events.Ready)
-	// and REST methods not on contracts.RestClient (GetCurrentUser, GetRole, AddMemberRole,
+	// and REST methods not on core.RestClient (GetCurrentUser, GetRole, AddMemberRole,
 	// RemoveMemberRole, GetMember). The event listener and guild iteration loop are removed;
 	// the framework calls Setup per guild. Wire when gateway/client access is added to Deps.
 

@@ -3,7 +3,7 @@ package permissions
 import (
 	"context"
 
-	"github.com/bil0u/galaxy-os/internal/contracts"
+	"github.com/bil0u/galaxy-os/internal/core"
 )
 
 // Permissions logs the permissions of the bot for each guild.
@@ -16,10 +16,10 @@ type permissionsConfig struct{}
 func (c permissionsConfig) Validate() error { return nil }
 
 func (f *permissions) Name() string                 { return "permissions" }
-func (f *permissions) Scope() contracts.Scope       { return contracts.BotScope }
-func (f *permissions) Needs() []contracts.ServiceID { return nil }
+func (f *permissions) Scope() core.Scope       { return core.BotScope }
+func (f *permissions) Needs() []core.ServiceID { return nil }
 
-func (f *permissions) Setup(deps contracts.Deps) error {
+func (f *permissions) Setup(deps core.Deps) error {
 	return nil
 }
 

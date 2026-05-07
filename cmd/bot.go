@@ -10,10 +10,16 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/bil0u/galaxy-os/feature/dailymessage"
+	"github.com/bil0u/galaxy-os/feature/info"
+	"github.com/bil0u/galaxy-os/feature/permissions"
+	"github.com/bil0u/galaxy-os/feature/presence"
+	"github.com/bil0u/galaxy-os/feature/selfassign"
+	"github.com/bil0u/galaxy-os/feature/suspiciousinterview"
+	"github.com/bil0u/galaxy-os/feature/testcmd"
 	"github.com/bil0u/galaxy-os/internal/config"
 	"github.com/bil0u/galaxy-os/internal/contracts"
 	discordadapter "github.com/bil0u/galaxy-os/internal/discord"
-	"github.com/bil0u/galaxy-os/internal/feature"
 	"github.com/bil0u/galaxy-os/internal/guild"
 	"github.com/bil0u/galaxy-os/internal/i18n"
 	"github.com/bil0u/galaxy-os/internal/service"
@@ -55,25 +61,25 @@ type botDef struct {
 var bots = map[string]botDef{
 	"hue": {
 		features: []contracts.Feature{
-			feature.Info,
-			feature.Permissions,
-			feature.Test,
-			feature.Presence,
-			feature.SelfAssign,
-			feature.DailyMessage,
-			feature.SuspiciousInterview,
+			info.Feature,
+			permissions.Feature,
+			testcmd.Feature,
+			presence.Feature,
+			selfassign.Feature,
+			dailymessage.Feature,
+			suspiciousinterview.Feature,
 		},
 		cacheFlags: cache.FlagGuilds | cache.FlagMembers | cache.FlagRoles,
 		intents:    gateway.IntentGuilds | gateway.IntentGuildMembers,
 	},
 	"kevin": {
 		features: []contracts.Feature{
-			feature.Info,
-			feature.Permissions,
-			feature.Test,
-			feature.Presence,
-			feature.SelfAssign,
-			feature.DailyMessage,
+			info.Feature,
+			permissions.Feature,
+			testcmd.Feature,
+			presence.Feature,
+			selfassign.Feature,
+			dailymessage.Feature,
 		},
 		cacheFlags: cache.FlagGuilds | cache.FlagRoles,
 		intents:    gateway.IntentGuilds,

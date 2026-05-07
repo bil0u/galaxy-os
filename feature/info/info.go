@@ -1,4 +1,4 @@
-package feature
+package info
 
 import (
 	"context"
@@ -9,7 +9,7 @@ import (
 )
 
 // Info displays bot version and commit information.
-var Info = &info{}
+var Feature = &info{}
 
 type info struct{}
 

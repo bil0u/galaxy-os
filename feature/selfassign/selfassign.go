@@ -1,4 +1,4 @@
-package feature
+package selfassign
 
 import (
 	"context"
@@ -12,7 +12,7 @@ import (
 )
 
 // SelfAssign assigns configured roles to the bot on startup.
-var SelfAssign = &selfAssign{}
+var Feature = &selfAssign{}
 
 type selfAssign struct {
 	logger  *slog.Logger

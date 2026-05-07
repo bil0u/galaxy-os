@@ -1,4 +1,4 @@
-package feature
+package testcmd
 
 import (
 	"context"
@@ -10,7 +10,7 @@ import (
 )
 
 // Test is a testing feature, not intended for production use.
-var Test = &test{}
+var Feature = &test{}
 
 type test struct{}
 

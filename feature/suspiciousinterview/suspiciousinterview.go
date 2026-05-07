@@ -1,4 +1,4 @@
-package feature
+package suspiciousinterview
 
 import (
 	"context"
@@ -14,7 +14,7 @@ import (
 
 // SuspiciousInterview interviews users with suspicious roles and assigns
 // a role based on their answers.
-var SuspiciousInterview = &suspiciousInterview{}
+var Feature = &suspiciousInterview{}
 
 type suspiciousInterview struct {
 	logger  *slog.Logger

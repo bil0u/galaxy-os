@@ -1,4 +1,4 @@
-package feature
+package permissions
 
 import (
 	"context"
@@ -7,7 +7,7 @@ import (
 )
 
 // Permissions logs the permissions of the bot for each guild.
-var Permissions = &permissions{}
+var Feature = &permissions{}
 
 type permissions struct{}
 

@@ -1,4 +1,4 @@
-package feature
+package presence
 
 import (
 	"context"
@@ -10,7 +10,7 @@ import (
 )
 
 // Presence automatically sets the bot presence based on guild config.
-var Presence = &presence{}
+var Feature = &presence{}
 
 type presence struct {
 	logger  *slog.Logger

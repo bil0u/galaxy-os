@@ -1,4 +1,4 @@
-package feature
+package dailymessage
 
 import (
 	"context"
@@ -11,7 +11,7 @@ import (
 )
 
 // DailyMessage sends a message every day at a configured time.
-var DailyMessage = &dailyMessage{}
+var Feature = &dailyMessage{}
 
 type dailyMessage struct {
 	logger  *slog.Logger

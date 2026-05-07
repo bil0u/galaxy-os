@@ -46,3 +46,7 @@ func (a *RestAdapter) CreateDMChannel(ctx context.Context, userID snowflake.ID, 
 func (a *RestAdapter) GetMember(ctx context.Context, guildID, userID snowflake.ID, opts ...rest.RequestOpt) (*discord.Member, error) {
 	return a.rest.GetMember(guildID, userID, a.withCtx(ctx, opts)...)
 }
+
+func (a *RestAdapter) GetRole(ctx context.Context, guildID, roleID snowflake.ID, opts ...rest.RequestOpt) (*discord.Role, error) {
+	return a.rest.GetRole(guildID, roleID, a.withCtx(ctx, opts)...)
+}

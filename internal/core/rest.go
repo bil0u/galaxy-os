@@ -17,4 +17,5 @@ type RestClient interface {
 	UpdateMessage(ctx context.Context, channelID, messageID snowflake.ID, update discord.MessageUpdate, opts ...rest.RequestOpt) (*discord.Message, error)
 	CreateDMChannel(ctx context.Context, userID snowflake.ID, opts ...rest.RequestOpt) (*discord.DMChannel, error)
 	GetMember(ctx context.Context, guildID, userID snowflake.ID, opts ...rest.RequestOpt) (*discord.Member, error)
+	GetRole(ctx context.Context, guildID, roleID snowflake.ID, opts ...rest.RequestOpt) (*discord.Role, error)
 }

@@ -2,17 +2,17 @@ package core
 
 import "context"
 
-// Bus enables optional coordination between bots.
-// Default is NoBus — all operations succeed silently.
-type Bus interface {
+// InnerBus enables optional coordination between features and bots.
+// Default is VoidBus — all operations succeed silently.
+type InnerBus interface {
 	Publish(ctx context.Context, topic string, payload any) error
 	Subscribe(ctx context.Context, topic string, handler func(ctx context.Context, payload any)) error
 }
 
-// NoBus is the default Bus implementation that silently succeeds.
-var NoBus Bus = noBus{}
+// VoidBus is the default InnerBus implementation that silently succeeds.
+var VoidBus InnerBus = voidBus{}
 
-type noBus struct{}
+type voidBus struct{}
 
-func (noBus) Publish(context.Context, string, any) error                          { return nil }
-func (noBus) Subscribe(context.Context, string, func(context.Context, any)) error { return nil }
+func (voidBus) Publish(context.Context, string, any) error                          { return nil }
+func (voidBus) Subscribe(context.Context, string, func(context.Context, any)) error { return nil }

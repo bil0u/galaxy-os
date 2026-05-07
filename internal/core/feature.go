@@ -40,12 +40,14 @@ type Deps struct {
 	Commands Registrar
 	Locale   LocaleResolver
 	Configs  ConfigProvider
-	Bus      Bus
+	Bus      InnerBus
 	Env      Env
 	BotName  string
 
 	GuildID snowflake.ID
 	Guilds  GuildAccessor
+
+	Gateway DiscordGateway
 
 	Cron  CronScheduler
 	OAuth OAuthProvider

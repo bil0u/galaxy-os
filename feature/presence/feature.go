@@ -6,17 +6,15 @@ import (
 	"log/slog"
 
 	"github.com/bil0u/galaxy-os/internal/core"
-	"github.com/disgoorg/snowflake/v2"
+	disbot "github.com/disgoorg/disgo/bot"
+	"github.com/disgoorg/disgo/discord"
+	"github.com/disgoorg/disgo/events"
+	"github.com/disgoorg/disgo/gateway"
 )
 
-// Presence automatically sets the bot presence based on guild config.
 var Feature = &presence{}
 
-type presence struct {
-	logger  *slog.Logger
-	configs core.ConfigProvider
-	guildID snowflake.ID
-}
+type presence struct{}
 
 type presenceConfig struct {
 	Enabled  bool
@@ -24,16 +22,11 @@ type presenceConfig struct {
 }
 
 func (c presenceConfig) Validate() error {
-	var errs []error
 	if len(c.Messages) == 0 {
-		errs = append(errs, fmt.Errorf("messages are required"))
+		return fmt.Errorf("messages are required")
 	}
-	_, ok := c.Messages["bot_ready"]
-	if !ok {
-		errs = append(errs, fmt.Errorf("message 'bot_ready' is required"))
-	}
-	if len(errs) > 0 {
-		return fmt.Errorf("invalid config: %v", errs)
+	if _, ok := c.Messages["bot_ready"]; !ok {
+		return fmt.Errorf("message 'bot_ready' is required")
 	}
 	return nil
 }
@@ -43,16 +36,36 @@ func (f *presence) Scope() core.Scope       { return core.GuildScope }
 func (f *presence) Needs() []core.ServiceID { return nil }
 
 func (f *presence) Setup(deps core.Deps) error {
-	f.logger = deps.Logger
-	f.configs = deps.Configs
-	f.guildID = deps.GuildID
+	guildID := deps.GuildID
+	logger := deps.Logger
+	configs := deps.Configs
+	gw := deps.Gateway
 
-	// TODO: presence setting requires gateway client access (client.SetPresenceForShard)
-	// and event listeners (bot.NewListenerFunc for events.Ready), neither of which are
-	// available in core.Deps. Wire when gateway/client access is added to Deps.
+	gw.AddEventListeners(disbot.NewListenerFunc(func(_ *events.Ready) {
+		cfg, err := core.ResolveGuild[presenceConfig](configs, guildID)
+		if err != nil {
+			logger.Error("resolving config", slog.Any("error", err))
+			return
+		}
+		if !cfg.Enabled {
+			return
+		}
+		if err := cfg.Validate(); err != nil {
+			logger.Error("invalid config", slog.Any("error", err))
+			return
+		}
+
+		msg := cfg.Messages["bot_ready"]
+		if err := gw.SetPresence(context.Background(),
+			gateway.WithOnlineStatus(discord.OnlineStatusOnline),
+			gateway.WithPlayingActivity(msg),
+		); err != nil {
+			logger.Error("setting presence", slog.Any("error", err))
+		}
+	}))
 
 	return nil
 }
 
-func (f *presence) Start(ctx context.Context) error { return nil }
-func (f *presence) Stop(ctx context.Context) error  { return nil }
+func (f *presence) Start(_ context.Context) error { return nil }
+func (f *presence) Stop(_ context.Context) error  { return nil }

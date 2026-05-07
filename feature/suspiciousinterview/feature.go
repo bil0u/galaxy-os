@@ -6,18 +6,14 @@ import (
 	"log/slog"
 
 	"github.com/bil0u/galaxy-os/internal/core"
+	disbot "github.com/disgoorg/disgo/bot"
+	"github.com/disgoorg/disgo/events"
 	"github.com/disgoorg/snowflake/v2"
 )
 
-// SuspiciousInterview interviews users with suspicious roles and assigns
-// a role based on their answers.
 var Feature = &suspiciousInterview{}
 
-type suspiciousInterview struct {
-	logger  *slog.Logger
-	configs core.ConfigProvider
-	guildID snowflake.ID
-}
+type suspiciousInterview struct{}
 
 type suspiciousInterviewConfig struct {
 	Enabled             bool
@@ -42,12 +38,10 @@ func (c suspiciousInterviewConfig) Validate() error {
 	if len(c.Questions) == 0 {
 		errs = append(errs, fmt.Errorf("questions are required"))
 	}
-
 	_, err := c.Questions.IsValid()
 	if err != nil {
 		errs = append(errs, err)
 	}
-
 	if len(errs) > 0 {
 		return fmt.Errorf("invalid config: %v", errs)
 	}
@@ -59,26 +53,55 @@ func (f *suspiciousInterview) Scope() core.Scope       { return core.GuildScope 
 func (f *suspiciousInterview) Needs() []core.ServiceID { return nil }
 
 func (f *suspiciousInterview) Setup(deps core.Deps) error {
-	f.logger = deps.Logger
-	f.configs = deps.Configs
-	f.guildID = deps.GuildID
+	guildID := deps.GuildID
+	logger := deps.Logger
+	configs := deps.Configs
+	gw := deps.Gateway
 
-	// TODO: suspicious interview requires gateway client access
-	// (bot.NewListenerFunc for events.GuildMemberUpdate and events.GuildMemberJoin)
-	// and REST methods not on core.RestClient (GetGuild).
-	// Wire when gateway/client access is added to Deps.
+	hasSuspiciousRole := func(member *events.GenericGuildMember) bool {
+		cfg, err := core.ResolveGuild[suspiciousInterviewConfig](configs, guildID)
+		if err != nil || !cfg.Enabled {
+			return false
+		}
+		for _, roleID := range member.Member.RoleIDs {
+			for _, detectID := range cfg.DetectRoles {
+				if roleID == detectID {
+					return true
+				}
+			}
+		}
+		return false
+	}
+
+	gw.AddEventListeners(disbot.NewListenerFunc(func(e *events.GuildMemberJoin) {
+		if e.GuildID != guildID {
+			return
+		}
+		if !hasSuspiciousRole(e.GenericGuildMember) {
+			return
+		}
+		logger.Info("suspicious member joined", slog.String("user", e.Member.User.Username))
+		// TODO: implement interview execution flow
+		// 1. Open DM channel with the member
+		// 2. Send localized welcome message
+		// 3. Walk through each question, wait for reply
+		// 4. Evaluate answers, assign IfSuccess or IfFailure role
+		// 5. If ClearAfterInterview, remove DetectRoles
+	}))
+
+	gw.AddEventListeners(disbot.NewListenerFunc(func(e *events.GuildMemberUpdate) {
+		if e.GuildID != guildID {
+			return
+		}
+		if !hasSuspiciousRole(e.GenericGuildMember) {
+			return
+		}
+		logger.Info("member gained suspicious role", slog.String("user", e.Member.User.Username))
+		// TODO: same interview flow as GuildMemberJoin above
+	}))
 
 	return nil
 }
 
-func (f *suspiciousInterview) Start(ctx context.Context) error { return nil }
-func (f *suspiciousInterview) Stop(ctx context.Context) error  { return nil }
-
-// TODO: implement interview execution flow.
-// When gateway client access is available in Deps:
-// 1. Listen for GuildMemberJoin/GuildMemberUpdate events
-// 2. Check if the member has any of the configured DetectRoles
-// 3. Open a DM channel and send the welcome message (localized)
-// 4. Walk through each question from config, send it, wait for the user's reply
-// 5. Evaluate answers and assign IfSuccess or IfFailure role accordingly
-// 6. If ClearAfterInterview is set, remove the original DetectRoles from the member
+func (f *suspiciousInterview) Start(_ context.Context) error { return nil }
+func (f *suspiciousInterview) Stop(_ context.Context) error  { return nil }

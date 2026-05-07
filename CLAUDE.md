@@ -109,7 +109,7 @@ type Feature interface {
 
 Features receive dependencies via `core.Deps` — a struct built per-feature by the framework:
 
-- Always populated: Logger (scoped), Rest (interface), Commands (Registrar), Locale, Configs (ConfigProvider), Bus, Env, BotName
+- Always populated: Logger (scoped), Rest (RestClient), Commands (Registrar), Locale, Configs (ConfigProvider), Bus (InnerBus), Env, BotName, Gateway (DiscordGateway — event listeners, presence, bot identity)
 - Scope-dependent: GuildID (GuildScope), Guilds (CrossGuildScope)
 - Needs-dependent: Cron (only if CronService declared), OAuth (only if OAuthService declared)
 

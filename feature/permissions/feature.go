@@ -15,7 +15,7 @@ type permissionsConfig struct{}
 
 func (c permissionsConfig) Validate() error { return nil }
 
-func (f *permissions) Name() string                 { return "permissions" }
+func (f *permissions) Name() string            { return "permissions" }
 func (f *permissions) Scope() core.Scope       { return core.BotScope }
 func (f *permissions) Needs() []core.ServiceID { return nil }
 

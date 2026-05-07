@@ -17,7 +17,7 @@ type infoConfig struct{}
 
 func (c infoConfig) Validate() error { return nil }
 
-func (f *info) Name() string                 { return "info" }
+func (f *info) Name() string            { return "info" }
 func (f *info) Scope() core.Scope       { return core.BotScope }
 func (f *info) Needs() []core.ServiceID { return nil }
 

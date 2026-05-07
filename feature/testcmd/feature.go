@@ -20,7 +20,7 @@ type testConfig struct {
 
 func (c testConfig) Validate() error { return nil }
 
-func (f *test) Name() string                 { return "test" }
+func (f *test) Name() string            { return "test" }
 func (f *test) Scope() core.Scope       { return core.BotScope }
 func (f *test) Needs() []core.ServiceID { return nil }
 

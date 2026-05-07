@@ -57,7 +57,7 @@ func (c suspiciousInterviewConfig) Validate() error {
 	return nil
 }
 
-func (f *suspiciousInterview) Name() string                 { return "suspicious_interview" }
+func (f *suspiciousInterview) Name() string            { return "suspicious_interview" }
 func (f *suspiciousInterview) Scope() core.Scope       { return core.GuildScope }
 func (f *suspiciousInterview) Needs() []core.ServiceID { return nil }
 

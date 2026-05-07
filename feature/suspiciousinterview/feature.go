@@ -6,9 +6,6 @@ import (
 	"log/slog"
 
 	"github.com/bil0u/galaxy-os/internal/core"
-	"github.com/bil0u/galaxy-os/internal/i18n"
-	"github.com/disgoorg/disgo/discord"
-	"github.com/disgoorg/disgo/rest"
 	"github.com/disgoorg/snowflake/v2"
 )
 
@@ -77,36 +74,11 @@ func (f *suspiciousInterview) Setup(deps core.Deps) error {
 func (f *suspiciousInterview) Start(ctx context.Context) error { return nil }
 func (f *suspiciousInterview) Stop(ctx context.Context) error  { return nil }
 
-// --- Interview execution logic ---
-
-var suspiciousWelcomeMessage = i18n.Text{
-	discord.LocaleEnglishUS: "Hello %s!\n\nBefore you join our ship, we need to ask you a few questions to determine your role. You will be asked a series of questions, please answer them truthfully.\n\nAre you ready?",
-	discord.LocaleFrench:    "Bonjour %s!\n\nAvant de rejoindre notre vaisseau, nous devons te poser quelques questions pour déterminer votre rôle. Tu seras invité à répondre à une série de questions, merci de répondre honnêtement.\n\nEs-tu prêt?",
-}
-
-func (cfg suspiciousInterviewConfig) executeInterview(restClient rest.Rest, member discord.Member, l discord.Locale) error {
-
-	userDMChannel, err := restClient.CreateDMChannel(member.User.ID)
-	if err != nil {
-		return fmt.Errorf("failed to create DM channel for user '%s' of guild '%s': %w", member.EffectiveName(), member.GuildID.String(), err)
-	}
-
-	welcomeMsgCreate := discord.NewMessageCreate().WithContent(suspiciousWelcomeMessage[l])
-
-	restClient.CreateMessage(userDMChannel.ID(), welcomeMsgCreate)
-
-	for _, question := range cfg.Questions {
-
-		slog.Info(fmt.Sprintf("Asking question '%s'", question.Question))
-
-		// Ask the question
-		// err := restClient.CreateMessage(userDMChannel.ID, discord.NewMessageCreate().WithContent(question.Question))
-		// if err != nil {
-		// 	return fmt.Errorf("failed to send question: %w", err)
-		// }
-
-		// Wait for the user to answer
-
-	}
-	return nil
-}
+// TODO: implement interview execution flow.
+// When gateway client access is available in Deps:
+// 1. Listen for GuildMemberJoin/GuildMemberUpdate events
+// 2. Check if the member has any of the configured DetectRoles
+// 3. Open a DM channel and send the welcome message (localized)
+// 4. Walk through each question from config, send it, wait for the user's reply
+// 5. Evaluate answers and assign IfSuccess or IfFailure role accordingly
+// 6. If ClearAfterInterview is set, remove the original DetectRoles from the member

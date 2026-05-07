@@ -1,0 +1,53 @@
+dev_guild = true
+timezone = "Europe/Paris"
+
+[features.hue.daily_message]
+enabled = false
+channel = 550451098658275360
+time = "10:30"
+
+[features.hue.self_assign_roles]
+enabled = false
+clear_roles_first = false
+roles = [1286850619801604148]
+
+[features.hue.bot_presence]
+enabled = false
+messages = { bot_ready = "À votre service !" }
+
+[features.hue.suspicious_interview]
+enabled = false
+detect_roles = [1285374094673580042, 1284597706706128906]
+if_success = 1284598017839595632
+if_failure = 1284598017839595632
+clear_after_interview = true
+questions = [
+	{ question = "Quel est ton nom ?", type = "free-text" },
+	{ question = "Quel age as-tu ?", type = "free-number", possible_answers = [
+		">18",
+	] },
+	{ question = "Es-tu un bot ?", type = "single-choice", possible_answers = [
+		"Oui",
+		"Non",
+	] },
+	{ question = "Es-tu un troll ?", type = "single-choice", possible_answers = [
+		"Oui",
+		"Non",
+	] },
+	{ question = "Es-tu raciste ?", type = "single-choice", possible_answers = [
+		"Oui",
+		"Non",
+	] },
+	{ question = "Es-tu sexiste ?", type = "single-choice", possible_answers = [
+		"Oui",
+		"Non",
+	] },
+	{ question = "Es-tu homophobe ?", type = "single-choice", possible_answers = [
+		"Oui",
+		"Non",
+	] },
+	{ question = "Es-tu un facho ?", type = "single-choice", possible_answers = [
+		"Oui",
+		"Non",
+	] },
+]

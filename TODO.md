@@ -49,6 +49,12 @@
 - [ ] SQL schema management tooling
 - [ ] i18n with string IDs — reference localized strings by namespaced IDs instead of inline maps, store translations in files, code provides ID + English default, other locales resolved at runtime with English fallback
 
+## Ideas (to be challenged)
+
+- [ ] Per-guild config subfolders — `conf/<guild_id>/` to store auxiliary config files per feature (e.g. `suspicious_interview.toml` for interview questions) instead of bloating the base config. Two options for how features access these:
+  - **Feature-driven**: each feature knows its filename convention and loads its own files
+  - **Framework API**: `ConfigProvider.LoadAuxiliary(guildID, filename, target)` resolves `conf/<guildID>/<filename>` — cleaner but couples the framework to the folder convention
+
 ## Planned features
 
 - [ ] Prevent soundboard spam (guild feature)

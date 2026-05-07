@@ -10,10 +10,8 @@ conf/secrets*.toml
 *.o
 *.a
 
-# Go mod dependencies
+# Go related
 vendor/
-
-# Go cache
 go/
 .gopath/
 

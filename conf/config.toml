@@ -1,0 +1,12 @@
+development = true
+
+[log]
+level = 0
+format = "text"
+add_source = true
+
+[bot.hue]
+base_url = "http://localhost:42000"
+
+[features.hue.test]
+foo = "bar"

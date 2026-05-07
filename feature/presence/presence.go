@@ -38,7 +38,7 @@ func (c presenceConfig) Validate() error {
 	return nil
 }
 
-func (f *presence) Name() string               { return "presence" }
+func (f *presence) Name() string                 { return "presence" }
 func (f *presence) Scope() contracts.Scope       { return contracts.GuildScope }
 func (f *presence) Needs() []contracts.ServiceID { return nil }
 

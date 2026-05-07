@@ -1,9 +1,9 @@
 # Configuration files
 .env
-config*.toml
-guild*.toml
-!config.example.toml
-!guild.example.toml
+conf/config*.toml
+conf/guild*.toml
+!conf/config.example.toml
+!conf/guild.example.toml
 
 # Generated assets
 .build/

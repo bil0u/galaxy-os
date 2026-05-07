@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/bil0u/galaxy-os/internal/i18n"
 	"github.com/bil0u/galaxy-os/internal/contracts"
+	"github.com/bil0u/galaxy-os/internal/i18n"
 	"github.com/disgoorg/disgo/discord"
 	"github.com/disgoorg/disgo/rest"
 	"github.com/disgoorg/snowflake/v2"
@@ -57,7 +57,7 @@ func (c suspiciousInterviewConfig) Validate() error {
 	return nil
 }
 
-func (f *suspiciousInterview) Name() string               { return "suspicious_interview" }
+func (f *suspiciousInterview) Name() string                 { return "suspicious_interview" }
 func (f *suspiciousInterview) Scope() contracts.Scope       { return contracts.GuildScope }
 func (f *suspiciousInterview) Needs() []contracts.ServiceID { return nil }
 

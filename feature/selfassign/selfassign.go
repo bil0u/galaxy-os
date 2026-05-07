@@ -37,7 +37,7 @@ func (c selfAssignConfig) Validate() error {
 	return nil
 }
 
-func (f *selfAssign) Name() string               { return "self_assign" }
+func (f *selfAssign) Name() string                 { return "self_assign" }
 func (f *selfAssign) Scope() contracts.Scope       { return contracts.GuildScope }
 func (f *selfAssign) Needs() []contracts.ServiceID { return nil }
 

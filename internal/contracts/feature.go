@@ -11,9 +11,9 @@ import (
 type Scope int
 
 const (
-	BotScope   Scope = iota // Framework calls Setup once. No guild context.
-	GuildScope              // Framework calls Setup per guild.
-	CrossGuildScope         // Framework calls Setup once with GuildAccessor in Deps.
+	BotScope        Scope = iota // Framework calls Setup once. No guild context.
+	GuildScope                   // Framework calls Setup per guild.
+	CrossGuildScope              // Framework calls Setup once with GuildAccessor in Deps.
 )
 
 // Feature is the unit of bot composition. Every feature implements this.

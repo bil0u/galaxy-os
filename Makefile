@@ -8,7 +8,7 @@ package = github.com/bil0u/galaxy-os
 bot ?= default
 version = dev
 commit = $(shell git rev-parse --short HEAD)
-target = bin/${bot}
+target = .build/${bot}
 ldFlags = "-X '${package}/cmd.bot=${bot}' -X '${package}/cmd.version=${version}' -X '${package}/cmd.commit=${commit}' -X '${package}/cmd.development=true'"
 runArgs = 
 

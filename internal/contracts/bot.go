@@ -1,8 +1,8 @@
 package contracts
 
 import (
-	"github.com/disgoorg/disgo/gateway"
 	"github.com/disgoorg/disgo/discord"
+	"github.com/disgoorg/disgo/gateway"
 )
 
 // Env discriminates deployment environments.

@@ -14,5 +14,5 @@ var NoBus Bus = noBus{}
 
 type noBus struct{}
 
-func (noBus) Publish(context.Context, string, any) error { return nil }
+func (noBus) Publish(context.Context, string, any) error                          { return nil }
 func (noBus) Subscribe(context.Context, string, func(context.Context, any)) error { return nil }

@@ -50,9 +50,11 @@ func (c dailyMessageConfig) cronSchedule() (string, error) {
 	return fmt.Sprintf("%s %s * * *", match[2], match[1]), nil
 }
 
-func (f *dailyMessage) Name() string               { return "daily_message" }
-func (f *dailyMessage) Scope() contracts.Scope       { return contracts.GuildScope }
-func (f *dailyMessage) Needs() []contracts.ServiceID { return []contracts.ServiceID{contracts.CronService} }
+func (f *dailyMessage) Name() string           { return "daily_message" }
+func (f *dailyMessage) Scope() contracts.Scope { return contracts.GuildScope }
+func (f *dailyMessage) Needs() []contracts.ServiceID {
+	return []contracts.ServiceID{contracts.CronService}
+}
 
 func (f *dailyMessage) Setup(deps contracts.Deps) error {
 	f.logger = deps.Logger

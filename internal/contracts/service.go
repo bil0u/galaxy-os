@@ -6,7 +6,7 @@ import "context"
 type ServiceID int
 
 const (
-	CronService  ServiceID = iota
+	CronService ServiceID = iota
 	OAuthService
 	SQLService
 	EmailService

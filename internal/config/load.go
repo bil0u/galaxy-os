@@ -22,12 +22,24 @@ func readLocalConfig(filename, path string) (*viper.Viper, error) {
 	return raw, nil
 }
 
+func mergeSecrets(cfg *viper.Viper, secretsName, path string) {
+	secrets, err := readLocalConfig(secretsName, path)
+	if err != nil {
+		slog.Debug("no secrets file found, continuing without", slog.String("name", secretsName))
+		return
+	}
+	if err := cfg.MergeConfigMap(secrets.AllSettings()); err != nil {
+		slog.Error("merging secrets", slog.String("name", secretsName), slog.Any("error", err))
+	}
+}
+
 // Init initializes the configuration and returns all config values.
 func Init(botName string) (*Global, *Log, *Bot, error) {
 	cfg, err := readLocalConfig("config", "conf")
 	if err != nil {
 		return nil, nil, nil, err
 	}
+	mergeSecrets(cfg, "secrets", "conf")
 
 	globalCfg, err := NewGlobal(cfg)
 	if err != nil {
@@ -65,6 +77,9 @@ func InitGuilds(ctx context.Context, client rest.Rest, botName string) (*GuildMa
 		if err != nil {
 			cfg = nil
 			slog.Error(err.Error())
+		}
+		if cfg != nil {
+			mergeSecrets(cfg, "secrets."+guild.ID.String(), "conf")
 		}
 		config, _ := NewGuild(cfg, botName)
 

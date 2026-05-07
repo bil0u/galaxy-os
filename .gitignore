@@ -1,9 +1,7 @@
-# Configuration files
+# Secrets (tokens, credentials)
 .env
-conf/config*.toml
-conf/guild*.toml
-!conf/config.example.toml
-!conf/guild.example.toml
+conf/secrets*.toml
+!conf/secrets.example.toml
 
 # Generated assets
 .gen/

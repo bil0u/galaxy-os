@@ -8,9 +8,6 @@ add_source = true
 
 # Replace <botname> with the actual bot name (e.g. [bot.hue])
 [bot.<botname>]
-# ApplicationID and Token are required
 application_id = 0
-token = ""
 # Only required when running with --oauth2
-client_secret = ""
 base_url = ""

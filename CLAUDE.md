@@ -47,26 +47,25 @@ The `bot` name is injected at compile time via `-ldflags` into `cmd.bot`. It det
 ### Package structure
 
 ```
-conf/              # TOML config files (gitignored except examples)
+conf/              # TOML config + secrets (secrets gitignored, config committed)
 cmd/               # CLI entry + boot composition
   bot.go           # "bot start" command + stage pipeline
   bots.go          # botDef + bots map
   registrar.go     # muxRegistrar adapter
 feature/           # Top-level feature catalog — one sub-package per feature
-  dailymessage/
-  info/
-  permissions/
-  presence/
-  selfassign/
-  suspiciousinterview/
-  testcmd/
+  <name>/
+    feature.go     # entrypoint: var Feature + Setup/Start/Stop
+    *.go           # helper types/logic
 internal/
-  core/       # Framework core — interfaces, boot pipeline, lifecycle
+  core/            # Framework core — interfaces, boot pipeline, lifecycle
   config/          # Config implementation (FileStore, Resolver, Provider)
   discord/         # Discord adapters (RestAdapter)
   guild/           # Guild lifecycle manager
   i18n/            # Internationalization (Text, LocaleResolver)
   service/         # Shared service implementations (cron, oauth, email, sql, logger)
+.gen/              # All generated/build artifacts (gitignored)
+  bin/             # Compiled binaries
+  reports/         # Audit, coverage reports
 ```
 
 ### Dependency rules
@@ -82,7 +81,7 @@ internal/
 
 All initialization runs through a declarative stage pipeline in `cmd/bot.go` via `core.Run()`:
 
-1. **config** — loads `config.toml`, parses Global/Bot/Log
+1. **config** — loads `config.toml` + merges `secrets.toml`, parses Global/Bot/Log
 2. **logger** — initializes structured slog
 3. **discord** — creates disgo bot.Client, sets up handler router
 4. **guilds** — queries Discord API, loads per-guild config, initializes GuildManager
@@ -117,18 +116,20 @@ Features receive dependencies via `core.Deps` — a struct built per-feature by 
 **Adding a new feature:**
 
 1. Create a sub-package in `feature/<name>/`
-2. Define a struct implementing `core.Feature` with a config struct implementing `core.Config`
+2. Define the entrypoint in `feature.go`: a struct implementing `core.Feature` with a config struct implementing `core.Config`
 3. Export a package-level var: `var Feature = &myFeature{}`
 4. Register in `cmd/bots.go`'s `bots` map for the relevant bot(s)
 
 ### Configuration system
 
-TOML-based, managed by viper. Two tiers:
+TOML-based, managed by viper. Config and secrets are separated:
 
-- `conf/config.toml` — global + per-bot config under `[bot.<botname>]`, features under `[features.<botname>.<featurekey>]`
-- `conf/config.<guild_snowflake_id>.toml` — per-guild overrides with inheritance from bot defaults
+- `conf/config.toml` — global + per-bot non-sensitive config (`[bot.<botname>]`, `[features.<botname>.<featurekey>]`). Committed.
+- `conf/config.<guild_id>.toml` — per-guild overrides with inheritance from bot defaults. Committed.
+- `conf/secrets.toml` — tokens, credentials, API keys (`[bot.<botname>]` secret fields). Gitignored.
+- `conf/secrets.<guild_id>.toml` — per-guild secrets. Gitignored.
 
-Both are **gitignored**. Only `conf/config.example.toml` is tracked. Config access in features via `core.ConfigProvider`:
+Secrets are merged on top of config at load time via viper. Config access in features via `core.ConfigProvider`:
 
 ```go
 core.ResolveGuild[MyConfig](deps.Configs, guildID)  // guild-scoped

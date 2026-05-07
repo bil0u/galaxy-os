@@ -10,13 +10,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/bil0u/galaxy-os/feature/dailymessage"
-	"github.com/bil0u/galaxy-os/feature/info"
-	"github.com/bil0u/galaxy-os/feature/permissions"
-	"github.com/bil0u/galaxy-os/feature/presence"
-	"github.com/bil0u/galaxy-os/feature/selfassign"
-	"github.com/bil0u/galaxy-os/feature/suspiciousinterview"
-	"github.com/bil0u/galaxy-os/feature/testcmd"
 	"github.com/bil0u/galaxy-os/internal/config"
 	"github.com/bil0u/galaxy-os/internal/contracts"
 	discordadapter "github.com/bil0u/galaxy-os/internal/discord"
@@ -50,83 +43,6 @@ var startCmd = &cobra.Command{
 	Use:   "start",
 	Short: "Start the discord bot",
 	RunE:  startBot,
-}
-
-type botDef struct {
-	features   []contracts.Feature
-	cacheFlags cache.Flags
-	intents    gateway.Intents
-}
-
-var bots = map[string]botDef{
-	"hue": {
-		features: []contracts.Feature{
-			info.Feature,
-			permissions.Feature,
-			testcmd.Feature,
-			presence.Feature,
-			selfassign.Feature,
-			dailymessage.Feature,
-			suspiciousinterview.Feature,
-		},
-		cacheFlags: cache.FlagGuilds | cache.FlagMembers | cache.FlagRoles,
-		intents:    gateway.IntentGuilds | gateway.IntentGuildMembers,
-	},
-	"kevin": {
-		features: []contracts.Feature{
-			info.Feature,
-			permissions.Feature,
-			testcmd.Feature,
-			presence.Feature,
-			selfassign.Feature,
-			dailymessage.Feature,
-		},
-		cacheFlags: cache.FlagGuilds | cache.FlagRoles,
-		intents:    gateway.IntentGuilds,
-	},
-}
-
-// muxRegistrar adapts handler.Mux to contracts.Registrar.
-// disgo v0.19.3 handler types include a typed data parameter;
-// the contracts.Registrar signatures omit it for simplicity.
-// Each handler wrapper includes panic recovery so a panicking
-// feature handler is logged and the bot continues running.
-type muxRegistrar struct {
-	mux    *handler.Mux
-	logger *slog.Logger
-}
-
-func (r *muxRegistrar) SlashCommand(path string, h contracts.SlashCommandHandler) {
-	r.mux.SlashCommand(path, func(_ discord.SlashCommandInteractionData, e *handler.CommandEvent) error {
-		defer func() {
-			if rec := recover(); rec != nil {
-				r.logger.Error("panic in slash command handler", slog.String("path", path), slog.Any("panic", rec))
-			}
-		}()
-		return h(e)
-	})
-}
-
-func (r *muxRegistrar) ButtonComponent(customID string, h contracts.ButtonComponentHandler) {
-	r.mux.ButtonComponent(customID, func(_ discord.ButtonInteractionData, e *handler.ComponentEvent) error {
-		defer func() {
-			if rec := recover(); rec != nil {
-				r.logger.Error("panic in button component handler", slog.String("custom_id", customID), slog.Any("panic", rec))
-			}
-		}()
-		return h(e)
-	})
-}
-
-func (r *muxRegistrar) Autocomplete(path string, h contracts.AutocompleteHandler) {
-	r.mux.Autocomplete(path, func(e *handler.AutocompleteEvent) error {
-		defer func() {
-			if rec := recover(); rec != nil {
-				r.logger.Error("panic in autocomplete handler", slog.String("path", path), slog.Any("panic", rec))
-			}
-		}()
-		return h(e)
-	})
 }
 
 func startBot(_ *cobra.Command, _ []string) error {
